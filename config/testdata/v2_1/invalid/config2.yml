@@ -1,0 +1,3 @@
+# This invalid config file tests that the validator works
+# when no jobs are present.
+version: 2.1
