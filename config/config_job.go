@@ -1,0 +1,63 @@
+package config
+
+import (
+	"errors"
+	"reflect"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Job struct {
+	Environment Environment          `yaml:"environment,omitempty"`
+	Parallelism int                  `yaml:"parallelism,omitempty"`
+	Parameters  map[string]Parameter `yaml:"parameters,omitempty"`
+	Steps       []Step               `yaml:"steps"`
+
+	Executor       JobExecutor `yaml:"executor,omitempty"`
+	InlineExecutor `yaml:",inline"`
+}
+
+type InlineExecutor Executor
+
+type JobExecutor struct {
+	Name        string
+	ParamValues ParamValues
+}
+
+func (executor *JobExecutor) UnmarshalYAML(node *yaml.Node) error {
+	if err := node.Decode(&executor.Name); err == nil {
+		return nil
+	}
+
+	executor.ParamValues.parent = reflect.TypeOf(executor)
+	if err := node.Decode(&executor.ParamValues); err != nil {
+		return nil
+	}
+
+	name := executor.ParamValues.Values["name"].String
+	if name == "" {
+		return errors.New("invalid job executor: name required")
+	}
+
+	executor.Name = name
+
+	return nil
+}
+
+func (executor JobExecutor) MarshalYAML() (any, error) {
+	if len(executor.ParamValues.Values) == 0 {
+		return executor.Name, nil
+	}
+	return executor.ParamValues.Values, nil
+}
+
+type RunData struct {
+	Command         string      `yaml:"command"`
+	Name            string      `yaml:"name,omitempty"`
+	Shell           string      `yaml:"shell,omitempty"`
+	Environment     Environment `yaml:"environment,omitempty"`
+	Background      bool        `yaml:"background,omitempty"`
+	WorkDir         string      `yaml:"working_directory,omitempty"`
+	NoOutputTimeout string      `yaml:"no_output_timeout,omitempty"`
+	When            string      `yaml:"when,omitempty"`
+}
