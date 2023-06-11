@@ -13,35 +13,34 @@ type Command struct {
 	Steps       []Step               `yaml:"steps"`
 }
 
+type RunData struct {
+	Command         string      `yaml:"command"`
+	Name            string      `yaml:"name,omitempty"`
+	Shell           string      `yaml:"shell,omitempty"`
+	Environment     Environment `yaml:"environment,omitempty"`
+	Background      bool        `yaml:"background,omitempty"`
+	WorkDir         string      `yaml:"working_directory,omitempty"`
+	NoOutputTimeout string      `yaml:"no_output_timeout,omitempty"`
+	When            string      `yaml:"when,omitempty"`
+}
+
 type Step struct {
+	Type   string      `yaml:"-"`
 	Run    RunData     `yaml:"run,omitempty"`
 	When   Conditional `yaml:"when,omitempty"`
 	Unless Conditional `yaml:"unless,omitempty"`
-	Type   string      `yaml:"-"`
-	Values ParamValues `yaml:"-"`
-}
-
-func (step Step) MarshalYAML() (any, error) {
-	switch step.Type {
-	case "run":
-		return map[string]RunData{"run": step.Run}, nil
-	case "when":
-		return map[string]Conditional{"when": step.When}, nil
-	case "unless":
-		return map[string]Conditional{"unless": step.Unless}, nil
-	}
-
-	if len(step.Values.Values) == 0 {
-		return step.Type, nil
-	}
-
-	return map[string]ParamValues{step.Type: step.Values}, nil
+	params ParamValues `yaml:"-"`
 }
 
 func (step *Step) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&step.Type); err == nil {
 		return nil
 	}
+
+	// var m map[string]RawNode
+	// if err := node.Decode(&m); err != nil {
+
+	// }
 
 	var shorthandRun struct {
 		Run string `yaml:"run"`
@@ -90,8 +89,25 @@ func (step *Step) UnmarshalYAML(node *yaml.Node) error {
 
 	for key, data := range elem {
 		step.Type = key
-		step.Values = data
+		step.params = data
 	}
 
 	return nil
+}
+
+func (step Step) MarshalYAML() (any, error) {
+	switch step.Type {
+	case "run":
+		return map[string]RunData{"run": step.Run}, nil
+	case "when":
+		return map[string]Conditional{"when": step.When}, nil
+	case "unless":
+		return map[string]Conditional{"unless": step.Unless}, nil
+	}
+
+	if len(step.params.Values) == 0 {
+		return step.Type, nil
+	}
+
+	return map[string]ParamValues{step.Type: step.params}, nil
 }

@@ -53,7 +53,7 @@ func (wfjd *WorkflowJobData) UnmarshalYAML(node *yaml.Node) error {
 }
 
 func (wfjd WorkflowJobData) MarshalYAML() (any, error) {
-	return structToMap(wfjd.WorkflowJobProps, toAnyMap(wfjd.Params.Values)), nil
+	return structToMap(wfjd.WorkflowJobProps, asAnyMap(wfjd.Params.Values)), nil
 }
 
 type WorkflowJob struct {

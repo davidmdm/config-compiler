@@ -50,14 +50,3 @@ func (executor JobExecutor) MarshalYAML() (any, error) {
 	}
 	return executor.ParamValues.Values, nil
 }
-
-type RunData struct {
-	Command         string      `yaml:"command"`
-	Name            string      `yaml:"name,omitempty"`
-	Shell           string      `yaml:"shell,omitempty"`
-	Environment     Environment `yaml:"environment,omitempty"`
-	Background      bool        `yaml:"background,omitempty"`
-	WorkDir         string      `yaml:"working_directory,omitempty"`
-	NoOutputTimeout string      `yaml:"no_output_timeout,omitempty"`
-	When            string      `yaml:"when,omitempty"`
-}
