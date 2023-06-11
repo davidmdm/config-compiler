@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -11,7 +10,7 @@ import (
 type Parameter struct {
 	Description string `yaml:"description,omitempty"`
 	Type        string `yaml:"type"`
-	Default     any    `yaml:"default"`
+	Default     any    `yaml:"default,omitempty"`
 	Enum        []any  `yaml:"enum,omitempty"`
 }
 
@@ -25,25 +24,20 @@ func (param *ParamValues) UnmarshalYAML(node *yaml.Node) error {
 		return node.Decode(&param.Values)
 	}
 
-	typ := param.parent
-	for typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
-	}
-
 	var intermediate map[string]any
 	if err := node.Decode(&intermediate); err != nil {
 		return err
 	}
 
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		name := strings.Split(field.Tag.Get("yaml"), ",")[0]
-		delete(intermediate, name)
+	for _, key := range topLevelKeys(param.parent) {
+		delete(intermediate, key)
 	}
+
 	data, err := yaml.Marshal(intermediate)
 	if err != nil {
 		return err
 	}
+
 	return yaml.Unmarshal(data, &param.Values)
 }
 

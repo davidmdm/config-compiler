@@ -28,9 +28,7 @@ type JobMatrix struct {
 	Exclude    []map[string]any `yaml:"exclude,omitempty"`
 }
 
-// WorkflowJobData is embedded in WorkflowJob and acts as a layer to avoid recursiveness in yaml decoding.
-// It allows us to separate the data from the key when jobs are in the format: {"key": {"props"...}}
-type WorkflowJobData struct {
+type WorkflowJobProps struct {
 	Name      string     `yaml:"name,omitempty"`
 	Type      string     `yaml:"type,omitempty"`
 	Requires  StringList `yaml:"requires,omitempty"`
@@ -41,10 +39,26 @@ type WorkflowJobData struct {
 	PostSteps []Step     `yaml:"post-steps,omitempty"`
 }
 
+type WorkflowJobData struct {
+	WorkflowJobProps `yaml:",inline"`
+	Params           ParamValues `yaml:"-"`
+}
+
+func (wfjd *WorkflowJobData) UnmarshalYAML(node *yaml.Node) error {
+	if err := node.Decode(&wfjd.WorkflowJobProps); err != nil {
+		return err
+	}
+	wfjd.Params.parent = reflect.TypeOf(wfjd)
+	return node.Decode(&wfjd.Params)
+}
+
+func (wfjd WorkflowJobData) MarshalYAML() (any, error) {
+	return structToMap(wfjd.WorkflowJobProps, toAnyMap(wfjd.Params.Values)), nil
+}
+
 type WorkflowJob struct {
 	Key             string `yaml:"-"`
 	WorkflowJobData `yaml:",inline"`
-	Values          ParamValues `yaml:"-"`
 }
 
 func (job *WorkflowJob) UnmarshalYAML(node *yaml.Node) error {
@@ -65,9 +79,7 @@ func (job *WorkflowJob) UnmarshalYAML(node *yaml.Node) error {
 		job.WorkflowJobData = data
 	}
 
-	job.Values.parent = reflect.TypeOf(job)
-
-	return node.Decode(&job.Values)
+	return nil
 }
 
 type Filters struct {
