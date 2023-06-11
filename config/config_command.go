@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"reflect"
 
 	"gopkg.in/yaml.v3"
 )
@@ -37,62 +36,33 @@ func (step *Step) UnmarshalYAML(node *yaml.Node) error {
 		return nil
 	}
 
-	// var m map[string]RawNode
-	// if err := node.Decode(&m); err != nil {
-
-	// }
-
-	var shorthandRun struct {
-		Run string `yaml:"run"`
-	}
-
-	if err := node.Decode(&shorthandRun); err == nil && shorthandRun.Run != "" {
-		step.Type = "run"
-		step.Run.Command = shorthandRun.Run
-		return nil
-	}
-
-	var runStmt struct {
-		Run RunData `yaml:"run"`
-	}
-	if err := node.Decode(&runStmt); err == nil && !reflect.ValueOf(runStmt).IsZero() {
-		step.Type = "run"
-		step.Run = runStmt.Run
-		return nil
-	}
-
-	var whenStmt struct {
-		When Conditional `yaml:"when"`
-	}
-	if err := node.Decode(&whenStmt); err == nil && !reflect.ValueOf(whenStmt).IsZero() {
-		step.Type = "when"
-		step.When = whenStmt.When
-		return nil
-	}
-
-	var unlessStmt struct {
-		Unless Conditional `yaml:"unless"`
-	}
-	if err := node.Decode(&unlessStmt); err == nil && !reflect.ValueOf(unlessStmt).IsZero() {
-		step.Type = "unless"
-		step.When = unlessStmt.Unless
-		return nil
-	}
-
-	var elem map[string]ParamValues
-	if err := node.Decode(&elem); err != nil {
+	var m map[string]RawNode
+	if err := node.Decode(&m); err != nil {
 		return err
 	}
-	if len(elem) != 1 {
-		return fmt.Errorf("expected step have single key but got: %d", len(elem))
+
+	if len(m) != 1 {
+		return fmt.Errorf("step can only be of one type")
 	}
 
-	for key, data := range elem {
+	for key, value := range m {
 		step.Type = key
-		step.params = data
+		node = value.Node
 	}
 
-	return nil
+	switch step.Type {
+	case "run":
+		if err := node.Decode(&step.Run.Command); err == nil {
+			return nil
+		}
+		return node.Decode(&step.Run)
+	case "when":
+		return node.Decode(&step.When)
+	case "unless":
+		return node.Decode(&step.Unless)
+	default:
+		return node.Decode(&step.params)
+	}
 }
 
 func (step Step) MarshalYAML() (any, error) {
