@@ -8,19 +8,9 @@ import (
 )
 
 type Workflow struct {
-	Jobs   WorkflowJobs `yaml:"jobs"`
-	When   *Condition   `yaml:"when,omitempty"`
-	Unless *Condition   `yaml:"unless,omitempty"`
-}
-
-type WorkflowJobs []WorkflowJob
-
-func (jobs WorkflowJobs) MarshalYAML() (any, error) {
-	target := make([]map[string]WorkflowJobData, len(jobs))
-	for i, job := range jobs {
-		target[i] = map[string]WorkflowJobData{job.Key: job.WorkflowJobData}
-	}
-	return target, nil
+	Jobs   []WorkflowJob `yaml:"jobs"`
+	When   *Condition    `yaml:"when,omitempty"`
+	Unless *Condition    `yaml:"unless,omitempty"`
 }
 
 type JobMatrix struct {
@@ -80,6 +70,13 @@ func (job *WorkflowJob) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	return nil
+}
+
+func (job WorkflowJob) MarshalYAML() (any, error) {
+	if reflect.ValueOf(job.WorkflowJobData).IsZero() {
+		return job.Key, nil
+	}
+	return map[string]WorkflowJobData{job.Key: job.WorkflowJobData}, nil
 }
 
 type Filters struct {
