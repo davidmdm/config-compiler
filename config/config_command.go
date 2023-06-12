@@ -34,12 +34,54 @@ type SetupRemoteDocker struct {
 	Version            string `yaml:"version,omitempty"`
 }
 
+type SaveCache struct {
+	Paths []string `yaml:"paths"`
+	Key   string   `yaml:"key"`
+	Name  string   `yaml:"name,omitempty"`
+	When  string   `yaml:"when,omitempty"`
+}
+
+type RestoreCache struct {
+	Key  string   `yaml:"key,omitempty"`
+	Keys []string `yaml:"keys,omitempty"`
+	Name string   `yaml:"name,omitempty"`
+}
+
+type StoreArtifacts struct {
+	Path        string `yaml:"path"`
+	Destination string `yaml:"destination,omitempty"`
+}
+
+type StoreTestResults struct {
+	Path string `yaml:"path"`
+}
+
+type PersistToWorkspace struct {
+	Root  string   `yaml:"root"`
+	Paths []string `yaml:"paths"`
+}
+
+type AttachWorkspace struct {
+	At string `yaml:"at"`
+}
+
+type AddSSHKeys struct {
+	Fingerprints []string `yaml:"fingerprints"`
+}
+
 type StepCMD struct {
-	Run               Run               `yaml:"run,omitempty"`
-	Checkout          Checkout          `yaml:"checkout,omitempty"`
-	SetupRemoteDocker SetupRemoteDocker `yaml:"setup_remote_docker,omitempty"`
-	When              Conditional       `yaml:"when,omitempty"`
-	Unless            Conditional       `yaml:"unless,omitempty"`
+	Run                Run                `yaml:"run,omitempty"`
+	Checkout           Checkout           `yaml:"checkout,omitempty"`
+	SetupRemoteDocker  SetupRemoteDocker  `yaml:"setup_remote_docker,omitempty"`
+	SaveCache          SaveCache          `yaml:"save_cache,omitempty"`
+	RestoreCache       RestoreCache       `yaml:"restore_cache,omitempty"`
+	StoreArtifacts     StoreArtifacts     `yaml:"store_artifacts,omitempty"`
+	StoreTestResults   StoreTestResults   `yaml:"store_test_results,omitempty"`
+	PersistToWorkspace PersistToWorkspace `yaml:"persist_to_workspace,omitempty"`
+	AttachWorkspace    AttachWorkspace    `yaml:"attack_workspace,omitempty"`
+	AddSSHKeys         AddSSHKeys         `yaml:"add_ssh_keys,omitempty"`
+	When               Conditional        `yaml:"when,omitempty"`
+	Unless             Conditional        `yaml:"unless,omitempty"`
 }
 
 type Step struct {
