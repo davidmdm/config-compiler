@@ -9,8 +9,8 @@ import (
 
 type Workflow struct {
 	Jobs   WorkflowJobs `yaml:"jobs"`
-	When   Conditional  `yaml:"when,omitempty"`
-	Unless Conditional  `yaml:"unless,omitempty"`
+	When   *Condition   `yaml:"when,omitempty"`
+	Unless *Condition   `yaml:"unless,omitempty"`
 }
 
 type WorkflowJobs []WorkflowJob

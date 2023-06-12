@@ -19,6 +19,15 @@ type ParamValues struct {
 	parent reflect.Type
 }
 
+func (params ParamValues) Lookup(name string) (ParamValue, bool) {
+	if params.Values == nil {
+		return ParamValue{}, false
+	}
+
+	result, ok := params.Values[name]
+	return result, ok
+}
+
 func (params ParamValues) MarshalYAML() (any, error) { return params.Values, nil }
 
 func (param *ParamValues) UnmarshalYAML(node *yaml.Node) error {
@@ -51,6 +60,21 @@ type ParamValue struct {
 	Executor JobExecutor
 
 	value any
+}
+
+func (param ParamValue) GetType() string {
+	switch param.value.(type) {
+	case string:
+		return "string"
+	case bool:
+		return "boolean"
+	case int:
+		return "integer"
+	}
+	if len(param.Steps) > 0 {
+		return "steps"
+	}
+	return "executor"
 }
 
 func (param *ParamValue) UnmarshalYAML(node *yaml.Node) error {

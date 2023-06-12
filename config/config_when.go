@@ -3,9 +3,15 @@ package config
 import (
 	"errors"
 	"reflect"
+	"regexp"
 
 	"gopkg.in/yaml.v3"
 )
+
+type ConditionalSteps struct {
+	Condition Condition `yaml:"condition"`
+	Steps     []Step    `yaml:"steps"`
+}
 
 type Matches struct {
 	Pattern string `yaml:"pattern"`
@@ -53,7 +59,48 @@ func (cond *Condition) UnmarshalYAML(node *yaml.Node) error {
 	return node.Decode(&cond.Literal)
 }
 
-type Conditional struct {
-	Condition Condition `yaml:"condition"`
-	Steps     []Step    `yaml:"steps"`
+func (cond Condition) Evaluate() bool {
+	if len(cond.And) > 0 {
+		for _, subcond := range cond.And {
+			if !subcond.Evaluate() {
+				return false
+			}
+		}
+		return true
+	}
+
+	if len(cond.Or) > 0 {
+		for _, subcond := range cond.Or {
+			if subcond.Evaluate() {
+				return true
+			}
+		}
+		return false
+	}
+
+	if cond.Not != nil {
+		return !cond.Not.Evaluate()
+	}
+
+	if size := len(cond.Equal); size > 0 {
+		if size == 1 {
+			return true
+		}
+		for i := 1; i < size; i++ {
+			if !reflect.DeepEqual(cond.Equal[i-1], cond.Equal[i]) {
+				return false
+			}
+		}
+		return true
+	}
+
+	if cond.Matches.Pattern != "" {
+		expression, err := regexp.Compile(cond.Matches.Pattern)
+		if err != nil {
+			panic("invalid pattern: " + cond.Matches.Pattern)
+		}
+		return expression.MatchString(cond.Matches.Value)
+	}
+
+	return !reflect.ValueOf(cond.Literal).IsZero()
 }

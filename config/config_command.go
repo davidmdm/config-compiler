@@ -80,8 +80,8 @@ type StepCMD struct {
 	PersistToWorkspace PersistToWorkspace `yaml:"persist_to_workspace,omitempty"`
 	AttachWorkspace    AttachWorkspace    `yaml:"attack_workspace,omitempty"`
 	AddSSHKeys         AddSSHKeys         `yaml:"add_ssh_keys,omitempty"`
-	When               Conditional        `yaml:"when,omitempty"`
-	Unless             Conditional        `yaml:"unless,omitempty"`
+	When               ConditionalSteps   `yaml:"when,omitempty"`
+	Unless             ConditionalSteps   `yaml:"unless,omitempty"`
 }
 
 type Step struct {
