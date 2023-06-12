@@ -20,11 +20,18 @@ type Docker struct {
 	User        string      `yaml:"user,omitempty"`
 	Environment Environment `yaml:"environment,omitempty"`
 	Auth        Auth        `yaml:"auth,omitempty"`
+	AWSAuth     AWSAuth     `yaml:"aws_auth,omitempty"`
 }
 
 type Auth struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+type AWSAuth struct {
+	AccessKey   string `yaml:"aws_access_key_id,omitempty"`
+	SecretKey   string `yaml:"aws_secret_access_key,omitempty"`
+	OIDCRoleARN string `yaml:"oidc_role_arn,omitempty"`
 }
 
 type MacOS struct {
