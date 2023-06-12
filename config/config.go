@@ -2,9 +2,12 @@ package config
 
 import (
 	"fmt"
+	"regexp"
 
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
+
+	"github.com/aymerick/raymond"
 )
 
 func Parse(data []byte) (*Config, error) {
@@ -28,24 +31,30 @@ func (c Config) ToYAML() ([]byte, error) { return yaml.Marshal(c) }
 func (c Config) Compile(pipelineParams map[string]any) (*Config, error) {
 	compiled := Config{Version: "2"}
 
+	// jobInstantiations := map[string][]Job{}
+
 	c.Workflows = make(map[string]Workflow, len(c.Workflows))
 
-	for wfName, wf := range c.Workflows {
-		if (wf.When != nil && !wf.When.Evaluate()) || (wf.Unless != nil && wf.Unless.Evaluate()) {
+	// First pass through workflows simply validates the workflows reference valid jobs, and that the
+	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
+	// it is written to the compiled version for future processing.
+	for workflowName, workflow := range c.Workflows {
+		if (workflow.When != nil && !workflow.When.Evaluate()) || (workflow.Unless != nil && workflow.Unless.Evaluate()) {
 			continue
 		}
 
-		for i, wfJob := range wf.Jobs {
-			definition, ok := c.Jobs[wfJob.Key]
+		for i, workflowJob := range workflow.Jobs {
+			definition, ok := c.Jobs[workflowJob.Key]
 			if !ok {
-				return nil, fmt.Errorf("workflow %q job at index %d references job definition %q that does not exist", wfName, i, wfJob.Key)
+				return nil, fmt.Errorf("workflow %q job at index %d references job definition %q that does not exist", workflowName, i, workflowJob.Key)
 			}
-			if errs := validateParameters(definition.Parameters, wfJob.Params); len(errs) > 0 {
-				return nil, PrettyIndentErr{Message: "error instantiating workflow %q job %q", Errors: errs}
+			if errs := validateParameters(definition.Parameters, workflowJob.Params); len(errs) > 0 {
+				return nil, PrettyIndentErr{Message: "error instantiating workflow at %q.%q:", Errors: errs}
 			}
+
 		}
 
-		compiled.Workflows[wfName] = wf
+		compiled.Workflows[workflowName] = workflow
 	}
 
 	return nil, nil
@@ -81,4 +90,37 @@ func validateParameters(parameters map[string]Parameter, values ParamValues) (er
 	}
 
 	return
+}
+
+func instantiateJob(c Config, def Job, params ParamValues) Job {
+	return Job{}
+}
+
+func (c Config) instantiateCommand(cmd Command, params ParamValues) {
+}
+
+var paramExpr = regexp.MustCompile(`<<(\s*(pipeline\.)?parameters\.\w+)\s*>>`)
+
+func toHandlebars(source string) string {
+	return paramExpr.ReplaceAllStringFunc(source, func(s string) string {
+		raw := []byte(s)
+		raw[0], raw[1], raw[len(raw)-2], raw[len(raw)-1] = '{', '{', '}', '}'
+		return string(raw)
+	})
+}
+
+func applyParams[T any](value *T, params map[string]any) error {
+	template, err := yaml.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	handlebarTmpl := toHandlebars(string(template))
+
+	raw, err := raymond.Render(handlebarTmpl, map[string]any{"parameters": params})
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal([]byte(raw), value)
 }
