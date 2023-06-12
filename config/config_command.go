@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -12,7 +14,7 @@ type Command struct {
 	Steps       []Step               `yaml:"steps"`
 }
 
-type RunData struct {
+type Run struct {
 	Command         string      `yaml:"command"`
 	Name            string      `yaml:"name,omitempty"`
 	Shell           string      `yaml:"shell,omitempty"`
@@ -23,13 +25,30 @@ type RunData struct {
 	When            string      `yaml:"when,omitempty"`
 }
 
-type Step struct {
-	Type   string      `yaml:"-"`
-	Run    RunData     `yaml:"run,omitempty"`
-	When   Conditional `yaml:"when,omitempty"`
-	Unless Conditional `yaml:"unless,omitempty"`
-	params ParamValues `yaml:"-"`
+type Checkout struct {
+	Path string `yaml:"path,omitempty"`
 }
+
+type SetupRemoteDocker struct {
+	DockerLayerCaching bool   `yaml:"docker_layer_caching,omitempty"`
+	Version            string `yaml:"version,omitempty"`
+}
+
+type StepCMD struct {
+	Run               Run               `yaml:"run,omitempty"`
+	Checkout          Checkout          `yaml:"checkout,omitempty"`
+	SetupRemoteDocker SetupRemoteDocker `yaml:"setup_remote_docker,omitempty"`
+	When              Conditional       `yaml:"when,omitempty"`
+	Unless            Conditional       `yaml:"unless,omitempty"`
+}
+
+type Step struct {
+	Type    string      `yaml:"-"`
+	Params  ParamValues `yaml:"-"`
+	StepCMD `yaml:",inline"`
+}
+
+var stepCmds = topLevelKeys(reflect.TypeOf(StepCMD{}))
 
 func (step *Step) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&step.Type); err == nil {
@@ -45,39 +64,37 @@ func (step *Step) UnmarshalYAML(node *yaml.Node) error {
 		return fmt.Errorf("step can only be of one type")
 	}
 
+	var childNode *yaml.Node
 	for key, value := range m {
 		step.Type = key
-		node = value.Node
+		childNode = value.Node
 	}
 
-	switch step.Type {
-	case "run":
-		if err := node.Decode(&step.Run.Command); err == nil {
+	if slices.Contains(stepCmds, step.Type) {
+		// Attempt short run declaration
+		if step.Type == "run" && childNode.Decode(&step.Run.Command) == nil {
 			return nil
 		}
-		return node.Decode(&step.Run)
-	case "when":
-		return node.Decode(&step.When)
-	case "unless":
-		return node.Decode(&step.Unless)
-	default:
-		return node.Decode(&step.params)
+		return node.Decode(&step.StepCMD)
 	}
+
+	return childNode.Decode(&step.Params)
 }
 
 func (step Step) MarshalYAML() (any, error) {
-	switch step.Type {
-	case "run":
-		return map[string]RunData{"run": step.Run}, nil
-	case "when":
-		return map[string]Conditional{"when": step.When}, nil
-	case "unless":
-		return map[string]Conditional{"unless": step.Unless}, nil
+	if slices.Contains(stepCmds, step.Type) {
+		if step.Type == "checkout" && (step.Checkout == Checkout{}) {
+			return "checkout", nil
+		}
+		if step.Type == "setup_remote_docker" && (step.SetupRemoteDocker == SetupRemoteDocker{}) {
+			return "setup_remote_docker", nil
+		}
+		return step.StepCMD, nil
 	}
 
-	if len(step.params.Values) == 0 {
+	if len(step.Params.Values) == 0 {
 		return step.Type, nil
 	}
 
-	return map[string]ParamValues{step.Type: step.params}, nil
+	return map[string]ParamValues{step.Type: step.Params}, nil
 }

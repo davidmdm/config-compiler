@@ -19,6 +19,8 @@ type ParamValues struct {
 	parent reflect.Type
 }
 
+func (params ParamValues) MarshalYAML() (any, error) { return params.Values, nil }
+
 func (param *ParamValues) UnmarshalYAML(node *yaml.Node) error {
 	if param.parent == nil {
 		return node.Decode(&param.Values)
