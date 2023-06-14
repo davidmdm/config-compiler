@@ -19,6 +19,14 @@ type ParamValues struct {
 	parent reflect.Type
 }
 
+func (params ParamValues) AsMap() map[string]any {
+	result := make(map[string]any, len(params.Values))
+	for k, v := range params.Values {
+		result[k] = v.value
+	}
+	return result
+}
+
 func (params ParamValues) Lookup(name string) (ParamValue, bool) {
 	if params.Values == nil {
 		return ParamValue{}, false

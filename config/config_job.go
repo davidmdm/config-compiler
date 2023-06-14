@@ -15,6 +15,9 @@ type Job struct {
 
 	Executor       JobExecutor `yaml:"executor,omitempty"`
 	InlineExecutor `yaml:",inline"`
+
+	// name is used for tracking final name in compilation process
+	name string
 }
 
 type InlineExecutor Executor
