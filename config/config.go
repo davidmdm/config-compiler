@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
@@ -18,7 +19,7 @@ func Parse(data []byte) (*Config, error) {
 }
 
 type Config struct {
-	Version    string               `yaml:"version"`
+	Version    float64              `yaml:"version"`
 	Jobs       map[string]Job       `yaml:"jobs"`
 	Workflows  map[string]Workflow  `yaml:"workflows"`
 	Setup      bool                 `yaml:"setup,omitempty"`
@@ -69,14 +70,35 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		return nil, err
 	}
 
+	type RawOrb struct {
+		Commands  map[string]RawNode `yaml:"commands"`
+		Executors map[string]RawNode `yaml:"executors"`
+	}
+
+	orbs := make(map[string]RawOrb, len(root.Orbs))
+
+	for name, orb := range root.Orbs {
+		src, err := GetOrbSource(orb)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get orb: %s", orb)
+		}
+
+		src = strings.ReplaceAll(src, "{{", "<<")
+		src = strings.ReplaceAll(src, "}}", ">>")
+
+		var raw RawOrb
+		if err := yaml.Unmarshal([]byte(src), &raw); err != nil {
+			return nil, fmt.Errorf("failed to parse orb %s: %w", name, err)
+		}
+		orbs[name] = raw
+	}
+
 	state := struct {
-		Jobs          map[string][]*Job
-		Workflows     map[string][]*Job
-		WorkflowNames []string
+		Jobs      map[string][]*Job
+		Workflows map[string][]*Job
 	}{
-		Jobs:          map[string][]*Job{},
-		Workflows:     map[string][]*Job{},
-		WorkflowNames: []string{},
+		Jobs:      map[string][]*Job{},
+		Workflows: map[string][]*Job{},
 	}
 
 	// First pass through workflows simply validates the workflows reference valid jobs, and that the
@@ -86,8 +108,6 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		if (workflow.When != nil && !workflow.When.Evaluate()) || (workflow.Unless != nil && workflow.Unless.Evaluate()) {
 			continue
 		}
-
-		state.WorkflowNames = append(state.WorkflowNames, workflowName)
 
 		for i, workflowJob := range workflow.Jobs {
 			definition, ok := root.Jobs[workflowJob.Key]
@@ -104,7 +124,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 				return nil, PrettyIndentErr{Message: "parameter error(s) instantiating workflow at %q.%q:", Errors: errs}
 			}
 
-			job, err := applyParams[Job](definition.Node, workflowJob.Params.AsMap())
+			job, err := applyParams[Job](definition.Node, parameters.JoinDefaults(workflowJob.Params.AsMap()))
 			if err != nil {
 				return nil, err
 			}
@@ -112,9 +132,29 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 			if job.Executor.Name != "" {
 				exNode, ok := root.Executors[job.Executor.Name]
 				if !ok {
-					return nil, fmt.Errorf("executor not found: %s", job.Executor.Name)
+					exNode, ok = func() (RawNode, bool) {
+						before, after, ok := strings.Cut(job.Executor.Name, "/")
+						if !ok {
+							return RawNode{}, false
+						}
+						orbDef, ok := orbs[before]
+						if !ok {
+							return RawNode{}, false
+						}
+						node, ok := orbDef.Executors[after]
+						return node, ok
+					}()
+					if !ok {
+						return nil, fmt.Errorf("executor not found: %s", job.Executor.Name)
+					}
 				}
-				ex, err := applyParams[Executor](exNode.Node, job.Executor.ParamValues.AsMap())
+
+				parameters, err := getParametersFromNode(exNode.Node)
+				if err != nil {
+					return nil, err
+				}
+
+				ex, err := applyParams[Executor](exNode.Node, parameters.JoinDefaults(job.Executor.ParamValues.AsMap()))
 				if err != nil {
 					return nil, err
 				}
@@ -151,7 +191,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 	}
 
 	compiled := Config{
-		Version:   "2",
+		Version:   2,
 		Jobs:      map[string]Job{},
 		Workflows: map[string]Workflow{},
 	}
@@ -255,7 +295,15 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 	}
 
 	dst := new(T)
-	return dst, yaml.Unmarshal([]byte(raw), dst)
+	if err := yaml.Unmarshal([]byte(raw), dst); err != nil {
+		fmt.Println("---debug---")
+		fmt.Println(handlebarTmpl)
+		fmt.Println(params)
+		fmt.Println("-----------")
+		return nil, err
+	}
+
+	return dst, nil
 }
 
 func toParamValues(m map[string]any) ParamValues {
@@ -266,9 +314,9 @@ func toParamValues(m map[string]any) ParamValues {
 	return result
 }
 
-func getParametersFromNode(node *yaml.Node) (map[string]Parameter, error) {
+func getParametersFromNode(node *yaml.Node) (Parameters, error) {
 	var parameterNode struct {
-		Parameters map[string]Parameter `yaml:"parameters"`
+		Parameters Parameters `yaml:"parameters"`
 	}
 	if err := node.Decode(&parameterNode); err != nil {
 		return nil, err
@@ -317,7 +365,7 @@ func expandStep(commands map[string]RawNode, step Step) ([]Step, error) {
 			return nil, PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) invoking command %s", step.Type), Errors: errs}
 		}
 
-		cmd, err := applyParams[Command](cmdNode.Node, step.Params.AsMap())
+		cmd, err := applyParams[Command](cmdNode.Node, parameters.JoinDefaults(step.Params.AsMap()))
 		if err != nil {
 			return nil, err
 		}

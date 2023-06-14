@@ -14,6 +14,20 @@ type Parameter struct {
 	Enum        []any  `yaml:"enum,omitempty"`
 }
 
+type Parameters map[string]Parameter
+
+func (params Parameters) JoinDefaults(values map[string]any) map[string]any {
+	result := map[string]any{}
+	for k, v := range params {
+		if x, ok := values[k]; ok {
+			result[k] = x
+		} else {
+			result[k] = v.Default
+		}
+	}
+	return result
+}
+
 type ParamValues struct {
 	Values map[string]ParamValue
 	parent reflect.Type
