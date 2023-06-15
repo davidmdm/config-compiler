@@ -1,0 +1,36 @@
+version: 2.1
+
+jobs:
+  test:
+    parameters:
+      image:
+        type: string
+    docker:
+      - image: << parameters.image >>
+    steps:
+      - checkout
+      - run: do it
+
+workflows:
+  main:
+    jobs:
+      - test:
+          image: go
+#
+# --- input above / expected below ---
+#
+
+version: 2
+jobs:
+  test:
+    steps:
+      - checkout
+      - run:
+          command: do it
+    docker:
+      - image: go
+workflows:
+  main:
+    jobs:
+      - test
+

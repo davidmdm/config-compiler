@@ -1,0 +1,33 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: my-image
+    environment:
+      TEST: test
+    steps:
+      - run: test
+
+workflows:
+  main:
+    jobs:
+      - test
+#
+# --- input above / expected below ---
+#
+
+version: 2
+jobs:
+  test:
+    environment:
+      TEST: test
+    steps:
+      - run:
+          command: test
+    docker:
+      - image: my-image
+workflows:
+  main:
+    jobs:
+      - test

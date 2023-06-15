@@ -1,0 +1,43 @@
+version: 2.1
+
+jobs:
+  test:
+    parameters:
+      image:
+        type: string
+    docker:
+      - image: << parameters.image >>
+    steps:
+      - run: do it
+
+workflows:
+  main:
+    jobs:
+      - test:
+          name: test-go
+          image: go
+      - test:
+          name: test-node
+          image: node
+#
+# --- input above / expected below ---
+#
+version: 2
+jobs:
+    test-go:
+        steps:
+            - run:
+                command: do it
+        docker:
+            - image: go
+    test-node:
+        steps:
+            - run:
+                command: do it
+        docker:
+            - image: node
+workflows:
+    main:
+        jobs:
+            - test-go
+            - test-node

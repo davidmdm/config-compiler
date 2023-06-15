@@ -1,0 +1,38 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: test
+    steps:
+      - custom-cmd
+
+workflows:
+  main:
+    jobs:
+      - test
+
+commands:
+  custom-cmd:
+    steps:
+      - run: do
+      - run: it
+#
+# --- input above / expected below ---
+#
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: do
+      - run:
+          command: it
+    docker:
+      - image: test
+workflows:
+  main:
+    jobs:
+      - test
+
