@@ -1,2 +1,7 @@
 playground
 .vscode
+
+config/test_output
+
+**/*.debug
+

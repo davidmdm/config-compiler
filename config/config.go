@@ -177,7 +177,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 				steps = append(steps, job.Steps...)
 				steps = append(steps, workflowJob.PostSteps...)
 
-				job.Steps, err = expandMultiStep(root.Commands, orbs, steps)
+				job.Steps, err = expandMultiStep(root.Commands, orbs, "", steps)
 				if err != nil {
 					return nil, err
 				}
@@ -270,7 +270,7 @@ func validateParameters(parameters map[string]Parameter, values ParamValues) (er
 	var missingArgs []string
 	for name, parameter := range parameters {
 		value, ok := values.Lookup(name)
-		if !ok {
+		if !ok || value.value == nil {
 			if parameter.Default == nil {
 				missingArgs = append(missingArgs, name)
 			}
@@ -317,10 +317,10 @@ func getParametersFromNode(node *yaml.Node) (Parameters, error) {
 	return parameterNode.Parameters, nil
 }
 
-func expandMultiStep(commands map[string]RawNode, orbs Orbs, steps []Step) ([]Step, error) {
+func expandMultiStep(commands map[string]RawNode, orbs Orbs, orbCtx string, steps []Step) ([]Step, error) {
 	var result []Step
 	for _, substep := range steps {
-		if substeps, err := expandStep(commands, orbs, substep); err != nil {
+		if substeps, err := expandStep(commands, orbs, orbCtx, substep); err != nil {
 			return nil, err
 		} else {
 			result = append(result, substeps...)
@@ -329,24 +329,24 @@ func expandMultiStep(commands map[string]RawNode, orbs Orbs, steps []Step) ([]St
 	return result, nil
 }
 
-func expandStep(commands map[string]RawNode, orbs Orbs, step Step) ([]Step, error) {
+func expandStep(commands map[string]RawNode, orbs Orbs, orbCtx string, step Step) ([]Step, error) {
 	switch {
 	case step.Type == "when":
 		if !step.When.Condition.Evaluate() {
 			return nil, nil
 		}
-		return expandMultiStep(commands, orbs, step.When.Steps)
+		return expandMultiStep(commands, orbs, orbCtx, step.When.Steps)
 	case step.Type == "unless":
 		if !step.Unless.Condition.Evaluate() {
 			return nil, nil
 		}
-		return expandMultiStep(commands, orbs, step.Unless.Steps)
+		return expandMultiStep(commands, orbs, orbCtx, step.Unless.Steps)
 	case slices.Contains(stepCmds, step.Type):
 		return []Step{step}, nil
 	default:
 		cmdNode, ok := commands[step.Type]
 		if !ok {
-			cmdNode, ok = orbs.GetCommandNode(step.Type)
+			cmdNode, orbCtx, ok = orbs.GetCommandNode(orbCtx, step.Type)
 			if !ok {
 				return nil, fmt.Errorf("command not found: %s", step.Type)
 			}
@@ -366,7 +366,7 @@ func expandStep(commands map[string]RawNode, orbs Orbs, step Step) ([]Step, erro
 			return nil, err
 		}
 
-		return expandMultiStep(commands, orbs, cmd.Steps)
+		return expandMultiStep(commands, orbs, orbCtx, cmd.Steps)
 	}
 }
 
@@ -403,17 +403,18 @@ func (orbs Orbs) GetJobNode(ref string) (RawNode, bool) {
 	return node, ok
 }
 
-func (orbs Orbs) GetCommandNode(ref string) (RawNode, bool) {
+func (orbs Orbs) GetCommandNode(orbCtx, ref string) (RawNode, string, bool) {
 	before, after, ok := strings.Cut(ref, "/")
 	if !ok {
-		return RawNode{}, false
+		before = orbCtx
+		after = ref
 	}
 	orb, ok := orbs[before]
 	if !ok {
-		return RawNode{}, false
+		return RawNode{}, "", false
 	}
 	node, ok := orb.Commands[after]
-	return node, ok
+	return node, before, ok
 }
 
 type KV struct {

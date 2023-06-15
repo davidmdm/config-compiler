@@ -110,16 +110,16 @@ func (param ParamValue) GetType() string {
 }
 
 func (param *ParamValue) UnmarshalYAML(node *yaml.Node) error {
-	if err := node.Decode(&param.String); err == nil {
-		param.value = param.String
-		return nil
-	}
 	if err := node.Decode(&param.Integer); err == nil {
 		param.value = param.Integer
 		return nil
 	}
 	if err := node.Decode(&param.Boolean); err == nil {
 		param.value = param.Boolean
+		return nil
+	}
+	if err := node.Decode(&param.String); err == nil {
+		param.value = param.String
 		return nil
 	}
 	if err := node.Decode(&param.Steps); err == nil {

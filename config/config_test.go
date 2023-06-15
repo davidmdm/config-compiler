@@ -3,8 +3,9 @@ package config_test
 import (
 	"bytes"
 	"embed"
-	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -24,6 +25,8 @@ var magicSeperator = []byte(`#
 func TestConfigs(t *testing.T) {
 	entries, err := testAssets.ReadDir("test_assets")
 	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll("test_output", 0o777))
 
 	for _, file := range entries {
 
@@ -55,10 +58,7 @@ func TestConfigs(t *testing.T) {
 			require.NoError(t, yaml.Unmarshal(expectedData, &expected))
 			require.NoError(t, yaml.Unmarshal(compiledData, &actual))
 
-			fmt.Println("---------------------")
-			fmt.Println(file.Name())
-			fmt.Println("---------------------")
-			fmt.Println(string(compiledData))
+			_ = os.WriteFile(filepath.Join("test_output", file.Name()), compiledData, 0o777)
 
 			require.EqualValues(t, expected, actual)
 		})

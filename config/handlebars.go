@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	paramExpr         = regexp.MustCompile(`<<(\s*parameters\.\w+)\s*>>`)
-	pipelineParamExpr = regexp.MustCompile(`<<\s*pipeline\.parameters\.\w+\s*>>`)
+	paramExpr         = regexp.MustCompile(`<<(\s*parameters\.[\w-]+)\s*>>`)
+	pipelineParamExpr = regexp.MustCompile(`<<\s*pipeline\.parameters\.[\w-]+\s*>>`)
 )
 
 func toHandlebars(source string, expr *regexp.Regexp) string {
@@ -41,6 +41,10 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 	if err != nil {
 		return nil, err
 	}
+
+	// _ = os.WriteFile("./output.template.debug", template.Bytes(), 0o777)
+	// _ = os.WriteFile("./output.handlebard.debug", []byte(handlebarTmpl), 0o777)
+	// _ = os.WriteFile("./output.debug", []byte(raw), 0o777)
 
 	dst := new(T)
 	if err := yaml.Unmarshal([]byte(raw), dst); err != nil {
