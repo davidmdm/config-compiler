@@ -47,7 +47,15 @@ type PrettyIndentErr struct {
 func (err PrettyIndentErr) Error() string {
 	indentedErrors := make([]string, len(err.Errors))
 	for i, e := range err.Errors {
-		indentedErrors[i] = "\t" + e.Error()
+		indentedErrors[i] = indent(e.Error())
 	}
 	return err.Message + "\n" + strings.Join(indentedErrors, "\n")
+}
+
+func indent(value string) string {
+	lines := strings.Split(value, "\n")
+	for i, line := range lines {
+		lines[i] = "\t" + line
+	}
+	return strings.Join(lines, "\n")
 }

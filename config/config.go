@@ -10,11 +10,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Parse(data []byte) (*Config, error) {
-	var c Config
-	return &c, yaml.Unmarshal(data, &c)
-}
-
 type Config struct {
 	Version    float64              `yaml:"version"`
 	Jobs       map[string]Job       `yaml:"jobs"`
