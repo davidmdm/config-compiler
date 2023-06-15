@@ -23,3 +23,12 @@ func (env *Environment) UnmarshalYAML(node *yaml.Node) error {
 	*env = target
 	return nil
 }
+
+func (env Environment) MarshalYAML() (any, error) {
+	for k, v := range env {
+		if v == nil {
+			env[k] = ""
+		}
+	}
+	return map[string]any(env), nil
+}

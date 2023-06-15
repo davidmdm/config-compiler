@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"fmt"
 	"regexp"
 
 	"github.com/aymerick/raymond"
@@ -45,10 +44,6 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 
 	dst := new(T)
 	if err := yaml.Unmarshal([]byte(raw), dst); err != nil {
-		fmt.Println("---debug---")
-		fmt.Println(handlebarTmpl)
-		fmt.Println(params)
-		fmt.Println("-----------")
 		return nil, err
 	}
 
