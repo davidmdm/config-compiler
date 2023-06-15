@@ -94,6 +94,8 @@ type ParamValue struct {
 
 func (param ParamValue) GetType() string {
 	switch param.value.(type) {
+	case nil:
+		return "nil"
 	case string:
 		return "string"
 	case bool:

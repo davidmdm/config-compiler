@@ -210,10 +210,13 @@ func validateParameters(parameters map[string]Parameter, values ParamValues) (er
 	var missingArgs []string
 	for name, parameter := range parameters {
 		value, ok := values.Lookup(name)
-		if parameter.Default == nil && !ok {
-			missingArgs = append(missingArgs, name)
+		if !ok {
+			if parameter.Default == nil {
+				missingArgs = append(missingArgs, name)
+			}
 			continue
 		}
+
 		if actualType := value.GetType(); parameter.Type != actualType {
 			if parameter.Type == "enum" && !slices.Contains(parameter.Enum, value.value) {
 				errs = append(errs, ParamEnumMismatchErr{
