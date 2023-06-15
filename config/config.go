@@ -79,12 +79,19 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		orbs[name] = raw
 	}
 
+	type ApprovalJob struct {
+		Index int
+		Job   WorkflowJob
+	}
+
 	state := struct {
 		Jobs      map[string][]*Job
 		Workflows map[string][]*Job
+		Approvals map[string][]ApprovalJob
 	}{
 		Jobs:      map[string][]*Job{},
 		Workflows: map[string][]*Job{},
+		Approvals: map[string][]ApprovalJob{},
 	}
 
 	// First pass through workflows simply validates the workflows reference valid jobs, and that the
@@ -96,6 +103,14 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		}
 
 		for i, workflowJob := range workflow.Jobs {
+			if workflowJob.Type == "approval" {
+				state.Approvals[workflowName] = append(state.Approvals[workflowName], ApprovalJob{
+					Index: i,
+					Job:   workflowJob,
+				})
+				continue
+			}
+
 			jobNode, ok := root.Jobs[workflowJob.Key]
 			if !ok {
 				jobNode, ok = orbs.GetJobNode(workflowJob.Key)
@@ -200,6 +215,10 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		targetWorkflow.When = nil
 		targetWorkflow.Jobs = workflowJobs
 
+		for i, approval := range state.Approvals[name] {
+			targetWorkflow.Jobs = slices.Insert(targetWorkflow.Jobs, approval.Index+i, approval.Job)
+		}
+
 		compiled.Workflows[name] = targetWorkflow
 	}
 
@@ -218,18 +237,24 @@ func validateParameters(parameters map[string]Parameter, values ParamValues) (er
 		}
 
 		if actualType := value.GetType(); parameter.Type != actualType {
-			if parameter.Type == "enum" && !slices.Contains(parameter.Enum, value.value) {
+			switch {
+			case parameter.Type == "enum" && !slices.Contains(parameter.Enum, value.value):
 				errs = append(errs, ParamEnumMismatchErr{
 					Name:    name,
 					Targets: parameter.Enum,
 					Value:   value.value,
 				})
-			} else {
+
+			case parameter.Type == "env_var_name" && actualType == "string":
+				continue
+
+			default:
 				errs = append(errs, ParamTypeMismatchErr{
 					Name: name,
 					Want: parameter.Type,
 					Got:  actualType,
 				})
+
 			}
 		}
 	}

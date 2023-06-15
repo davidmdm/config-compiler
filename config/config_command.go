@@ -78,7 +78,7 @@ type StepCMD struct {
 	StoreArtifacts     StoreArtifacts     `yaml:"store_artifacts,omitempty"`
 	StoreTestResults   StoreTestResults   `yaml:"store_test_results,omitempty"`
 	PersistToWorkspace PersistToWorkspace `yaml:"persist_to_workspace,omitempty"`
-	AttachWorkspace    AttachWorkspace    `yaml:"attack_workspace,omitempty"`
+	AttachWorkspace    AttachWorkspace    `yaml:"attach_workspace,omitempty"`
 	AddSSHKeys         AddSSHKeys         `yaml:"add_ssh_keys,omitempty"`
 	When               ConditionalSteps   `yaml:"when,omitempty"`
 	Unless             ConditionalSteps   `yaml:"unless,omitempty"`
