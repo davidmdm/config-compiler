@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
@@ -24,8 +25,6 @@ type Config struct {
 	Parameters map[string]Parameter `yaml:"parameters,omitempty"`
 	Executors  map[string]Executor  `yaml:"executors,omitempty"`
 }
-
-func (c Config) ToYAML() ([]byte, error) { return yaml.Marshal(c) }
 
 func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 	var rootNode RawNode
@@ -84,12 +83,17 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		Job   WorkflowJob
 	}
 
+	type MatrixJob struct {
+		MatrixValues []KV
+		Job          *Job
+	}
+
 	state := struct {
-		Jobs      map[string][]*Job
+		Jobs      map[string][]MatrixJob
 		Workflows map[string][]*Job
 		Approvals map[string][]ApprovalJob
 	}{
-		Jobs:      map[string][]*Job{},
+		Jobs:      map[string][]MatrixJob{},
 		Workflows: map[string][]*Job{},
 		Approvals: map[string][]ApprovalJob{},
 	}
@@ -119,67 +123,90 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 				}
 			}
 
-			parameters, err := getParametersFromNode(jobNode.Node)
-			if err != nil {
-				return nil, err
+			matrixKVs := flattenMatrix(workflowJob.Matrix.Parameters)
+
+			if len(matrixKVs) == 0 {
+				matrixKVs = make([][]KV, 1)
 			}
 
-			if errs := validateParameters(parameters, workflowJob.Params); len(errs) > 0 {
-				return nil, PrettyIndentErr{Message: "parameter error(s) instantiating workflow at %q.%q:", Errors: errs}
-			}
+			for _, matrix := range matrixKVs {
+				parameters, err := getParametersFromNode(jobNode.Node)
+				if err != nil {
+					return nil, err
+				}
 
-			job, err := applyParams[Job](jobNode.Node, parameters.JoinDefaults(workflowJob.Params.AsMap()))
-			if err != nil {
-				return nil, err
-			}
-
-			if job.Executor.Name != "" {
-				exNode, ok := root.Executors[job.Executor.Name]
-				if !ok {
-					exNode, ok = orbs.GetExecutorNode(job.Executor.Name)
-					if !ok {
-						return nil, fmt.Errorf("executor not found: %s", job.Executor.Name)
+				paramValues := func() ParamValues {
+					if len(matrix) == 0 {
+						return workflowJob.Params
 					}
+					values := map[string]ParamValue{}
+					for _, kv := range matrix {
+						values[kv.Key] = ParamValue{value: kv.Value}
+					}
+					maps.Copy(values, workflowJob.Params.Values)
+					return ParamValues{Values: values}
+				}()
+
+				if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
+					return nil, PrettyIndentErr{Message: "parameter error(s) instantiating workflow at %q.%q:", Errors: errs}
 				}
 
-				parameters, err := getParametersFromNode(exNode.Node)
+				job, err := applyParams[Job](jobNode.Node, parameters.JoinDefaults(paramValues.AsMap()))
 				if err != nil {
 					return nil, err
 				}
 
-				ex, err := applyParams[Executor](exNode.Node, parameters.JoinDefaults(job.Executor.ParamValues.AsMap()))
+				if job.Executor.Name != "" {
+					exNode, ok := root.Executors[job.Executor.Name]
+					if !ok {
+						exNode, ok = orbs.GetExecutorNode(job.Executor.Name)
+						if !ok {
+							return nil, fmt.Errorf("executor not found: %s", job.Executor.Name)
+						}
+					}
+
+					parameters, err := getParametersFromNode(exNode.Node)
+					if err != nil {
+						return nil, err
+					}
+
+					ex, err := applyParams[Executor](exNode.Node, parameters.JoinDefaults(job.Executor.ParamValues.AsMap()))
+					if err != nil {
+						return nil, err
+					}
+					job.InlineExecutor = InlineExecutor(*ex)
+				}
+
+				var steps []Step
+				steps = append(steps, workflowJob.PreSteps...)
+				steps = append(steps, job.Steps...)
+				steps = append(steps, workflowJob.PostSteps...)
+
+				job.Steps, err = expandMultiStep(root.Commands, orbs, steps)
 				if err != nil {
 					return nil, err
 				}
-				job.InlineExecutor = InlineExecutor(*ex)
+
+				jobName := workflowJob.Name
+				if jobName == "" {
+					jobName = workflowJob.Key
+				}
+
+				jobIdx := slices.IndexFunc(state.Jobs[jobName], func(j MatrixJob) bool {
+					return reflect.DeepEqual(job, j)
+				})
+
+				if jobIdx < 0 {
+					state.Jobs[jobName] = append(state.Jobs[jobName], MatrixJob{
+						MatrixValues: matrix,
+						Job:          job,
+					})
+				} else {
+					job = state.Jobs[jobName][jobIdx].Job
+				}
+
+				state.Workflows[workflowName] = append(state.Workflows[workflowName], job)
 			}
-
-			var steps []Step
-			steps = append(steps, workflowJob.PreSteps...)
-			steps = append(steps, job.Steps...)
-			steps = append(steps, workflowJob.PostSteps...)
-
-			job.Steps, err = expandMultiStep(root.Commands, orbs, steps)
-			if err != nil {
-				return nil, err
-			}
-
-			jobName := workflowJob.Name
-			if jobName == "" {
-				jobName = workflowJob.Key
-			}
-
-			jobIdx := slices.IndexFunc(state.Jobs[jobName], func(j *Job) bool {
-				return reflect.DeepEqual(job, j)
-			})
-
-			if jobIdx < 0 {
-				state.Jobs[jobName] = append(state.Jobs[jobName], job)
-			} else {
-				job = state.Jobs[jobName][jobIdx]
-			}
-
-			state.Workflows[workflowName] = append(state.Workflows[workflowName], job)
 		}
 	}
 
@@ -189,14 +216,33 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		Workflows: map[string]Workflow{},
 	}
 
-	for name, jobs := range state.Jobs {
-		jobTotal := len(jobs)
-		for i, job := range jobs {
+	for name, matrixJobs := range state.Jobs {
+		jobTotal := len(matrixJobs)
+		for i, matrixJob := range matrixJobs {
+
+			job := matrixJob.Job
+
 			if jobTotal == 1 {
 				job.name = name
 			} else {
 				job.name = fmt.Sprintf("%s-%d", name, i+1)
 			}
+
+			matrixSuffix := func() string {
+				if matrixJob.MatrixValues == nil {
+					return ""
+				}
+				values := []string{}
+				for _, kv := range matrixJob.MatrixValues {
+					values = append(values, fmt.Sprintf("%v", kv.Value))
+				}
+				return strings.Join(values, "-")
+			}()
+
+			if matrixSuffix != "" {
+				job.name = name + "-" + matrixSuffix
+			}
+
 			// zero out reusable fields
 			job.Parameters = nil
 			job.Executor = JobExecutor{}
@@ -373,4 +419,72 @@ func (orbs Orbs) GetCommandNode(ref string) (RawNode, bool) {
 	}
 	node, ok := orb.Commands[after]
 	return node, ok
+}
+
+type KV struct {
+	Key   string
+	Value any
+}
+
+func flattenMatrix(m map[string][]any) [][]KV {
+	keys := maps.Keys(m)
+	slices.Sort(keys)
+
+	matrix := make([][]any, len(keys))
+	for i, k := range keys {
+		matrix[i] = m[k]
+	}
+
+	rows := crossProduct(matrix)
+
+	result := make([][]KV, len(rows))
+	for i, row := range rows {
+		keyValues := make([]KV, len(row))
+		for j, v := range row {
+			keyValues[j] = KV{
+				Key:   keys[j],
+				Value: v,
+			}
+		}
+		result[i] = keyValues
+	}
+
+	return result
+}
+
+func crossProduct[T any](m [][]T) [][]T {
+	if len(m) == 0 {
+		return nil
+	}
+
+	// len(m) parameters, so each row shall be of size len(m).
+	rowSize := len(m)
+
+	total := 1
+	for _, set := range m {
+		total *= len(set)
+	}
+
+	subTotals := make([]int, len(m))
+	for i := range m {
+		subTotals[i] = func() int {
+			total := 1
+			for _, set := range m[i+1:] {
+				total *= len(set)
+			}
+			return total
+		}()
+	}
+
+	result := make([][]T, total)
+
+	for i := 0; i < total; i++ {
+		row := make([]T, rowSize)
+		for pos := 0; pos < rowSize; pos++ {
+			row[pos] = m[pos][(i/subTotals[pos])%len(m[pos])]
+		}
+		result[i] = row
+	}
+
+	return result
 }
