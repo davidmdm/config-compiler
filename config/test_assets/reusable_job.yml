@@ -17,25 +17,25 @@ workflows:
           image: go
       - test:
           image: node
-#
-# --- input above / expected below ---
-#
+
+--- # input above / compiled below
+
 version: 2
 jobs:
-    test-1:
-        steps:
-            - run:
-                command: do it
-        docker:
-            - image: go
-    test-2:
-        steps:
-            - run:
-                command: do it
-        docker:
-            - image: node
+  test-1:
+    steps:
+      - run:
+          command: do it
+    docker:
+      - image: go
+  test-2:
+    steps:
+      - run:
+          command: do it
+    docker:
+      - image: node
 workflows:
-    main:
-        jobs:
-            - test-1
-            - test-2
+  main:
+    jobs:
+      - test-1
+      - test-2

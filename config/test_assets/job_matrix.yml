@@ -19,113 +19,112 @@ workflows:
   main:
     jobs:
       - test:
-          matrix: 
+          matrix:
             parameters:
               image: [go, node, ruby]
               cmd: [echo, cat]
               resource_class: [small, large]
-#
-# --- input above / expected below ---
-#
+
+--- # input above / compiled below
 
 version: 2
 jobs:
-    test-cat-go-large:
-        steps:
-            - run:
-                command: cat
-        resource_class: large
-        docker:
-            - image: go
-    test-cat-go-small:
-        steps:
-            - run:
-                command: cat
-        resource_class: small
-        docker:
-            - image: go
-    test-cat-node-large:
-        steps:
-            - run:
-                command: cat
-        resource_class: large
-        docker:
-            - image: node
-    test-cat-node-small:
-        steps:
-            - run:
-                command: cat
-        resource_class: small
-        docker:
-            - image: node
-    test-cat-ruby-large:
-        steps:
-            - run:
-                command: cat
-        resource_class: large
-        docker:
-            - image: ruby
-    test-cat-ruby-small:
-        steps:
-            - run:
-                command: cat
-        resource_class: small
-        docker:
-            - image: ruby
-    test-echo-go-large:
-        steps:
-            - run:
-                command: echo
-        resource_class: large
-        docker:
-            - image: go
-    test-echo-go-small:
-        steps:
-            - run:
-                command: echo
-        resource_class: small
-        docker:
-            - image: go
-    test-echo-node-large:
-        steps:
-            - run:
-                command: echo
-        resource_class: large
-        docker:
-            - image: node
-    test-echo-node-small:
-        steps:
-            - run:
-                command: echo
-        resource_class: small
-        docker:
-            - image: node
-    test-echo-ruby-large:
-        steps:
-            - run:
-                command: echo
-        resource_class: large
-        docker:
-            - image: ruby
-    test-echo-ruby-small:
-        steps:
-            - run:
-                command: echo
-        resource_class: small
-        docker:
-            - image: ruby
+  test-cat-go-large:
+    steps:
+      - run:
+          command: cat
+    resource_class: large
+    docker:
+      - image: go
+  test-cat-go-small:
+    steps:
+      - run:
+          command: cat
+    resource_class: small
+    docker:
+      - image: go
+  test-cat-node-large:
+    steps:
+      - run:
+          command: cat
+    resource_class: large
+    docker:
+      - image: node
+  test-cat-node-small:
+    steps:
+      - run:
+          command: cat
+    resource_class: small
+    docker:
+      - image: node
+  test-cat-ruby-large:
+    steps:
+      - run:
+          command: cat
+    resource_class: large
+    docker:
+      - image: ruby
+  test-cat-ruby-small:
+    steps:
+      - run:
+          command: cat
+    resource_class: small
+    docker:
+      - image: ruby
+  test-echo-go-large:
+    steps:
+      - run:
+          command: echo
+    resource_class: large
+    docker:
+      - image: go
+  test-echo-go-small:
+    steps:
+      - run:
+          command: echo
+    resource_class: small
+    docker:
+      - image: go
+  test-echo-node-large:
+    steps:
+      - run:
+          command: echo
+    resource_class: large
+    docker:
+      - image: node
+  test-echo-node-small:
+    steps:
+      - run:
+          command: echo
+    resource_class: small
+    docker:
+      - image: node
+  test-echo-ruby-large:
+    steps:
+      - run:
+          command: echo
+    resource_class: large
+    docker:
+      - image: ruby
+  test-echo-ruby-small:
+    steps:
+      - run:
+          command: echo
+    resource_class: small
+    docker:
+      - image: ruby
 workflows:
-    main:
-        jobs:
-            - test-echo-go-small
-            - test-echo-go-large
-            - test-echo-node-small
-            - test-echo-node-large
-            - test-echo-ruby-small
-            - test-echo-ruby-large
-            - test-cat-go-small
-            - test-cat-go-large
-            - test-cat-node-small
-            - test-cat-node-large
-            - test-cat-ruby-small
-            - test-cat-ruby-large
+  main:
+    jobs:
+      - test-echo-go-small
+      - test-echo-go-large
+      - test-echo-node-small
+      - test-echo-node-large
+      - test-echo-ruby-small
+      - test-echo-ruby-large
+      - test-cat-go-small
+      - test-cat-go-large
+      - test-cat-node-small
+      - test-cat-node-large
+      - test-cat-ruby-small
+      - test-cat-ruby-large

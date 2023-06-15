@@ -13,9 +13,8 @@ workflows:
   main:
     jobs:
       - test
-#
-# --- input above / expected below ---
-#
+
+--- # input above / compiled below
 
 version: 2
 jobs:

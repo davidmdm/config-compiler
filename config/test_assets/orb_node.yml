@@ -17,9 +17,7 @@ workflows:
     jobs:
       - install-node-example
 
-#
-# --- input above / expected below ---
-#
+--- # input above / compiled below
 
 version: 2
 jobs:

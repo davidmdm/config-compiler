@@ -17,9 +17,8 @@ commands:
     steps:
       - run: do
       - run: it
-#
-# --- input above / expected below ---
-#
+
+--- # input above / compiled below
 
 version: 2
 jobs:
@@ -35,4 +34,3 @@ workflows:
   main:
     jobs:
       - test
-

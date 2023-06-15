@@ -7,6 +7,7 @@ type Environment map[string]any
 func (env *Environment) UnmarshalYAML(node *yaml.Node) error {
 	var envslice []Environment
 	if err := node.Decode(&envslice); err == nil {
+		*env = map[string]any{}
 		for _, envmap := range envslice {
 			for k, v := range envmap {
 				(*env)[k] = v

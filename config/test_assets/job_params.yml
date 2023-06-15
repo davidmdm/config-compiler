@@ -16,9 +16,8 @@ workflows:
     jobs:
       - test:
           image: go
-#
-# --- input above / expected below ---
-#
+
+--- # input above / compiled below
 
 version: 2
 jobs:
@@ -33,4 +32,3 @@ workflows:
   main:
     jobs:
       - test
-

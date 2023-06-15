@@ -1,0 +1,49 @@
+version: 2.1
+
+jobs:
+  one:
+    docker:
+      - image: my-image
+    steps:
+      - run: do it
+    environment:
+      VAR: variable
+  two:
+    docker:
+      - image: my-image
+    steps:
+      - run: do it
+    environment:
+      - VAR: variable
+
+workflows:
+  main:
+    jobs:
+      - one
+      - two
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  one:
+    environment:
+      VAR: variable
+    steps:
+      - run:
+          command: do it
+    docker:
+      - image: my-image
+  two:
+    environment:
+      VAR: variable
+    steps:
+      - run:
+          command: do it
+    docker:
+      - image: my-image
+workflows:
+  main:
+    jobs:
+      - one
+      - two

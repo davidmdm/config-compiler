@@ -18,9 +18,7 @@ import (
 //go:embed test_assets
 var testAssets embed.FS
 
-var magicSeperator = []byte(`#
-# --- input above / expected below ---
-#`)
+var magicSeperator = []byte(`--- # input above / compiled below`)
 
 func TestConfigs(t *testing.T) {
 	entries, err := testAssets.ReadDir("test_assets")
