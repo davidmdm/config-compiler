@@ -33,6 +33,14 @@ type ParamValues struct {
 	parent reflect.Type
 }
 
+func toParamValues(m map[string]any) ParamValues {
+	result := ParamValues{Values: make(map[string]ParamValue, len(m))}
+	for k, v := range m {
+		result.Values[k] = ParamValue{value: v}
+	}
+	return result
+}
+
 func (params ParamValues) AsMap() map[string]any {
 	result := make(map[string]any, len(params.Values))
 	for k, v := range params.Values {

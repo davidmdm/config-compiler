@@ -1,16 +1,12 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
-
-	"github.com/aymerick/raymond"
 )
 
 func Parse(data []byte) (*Config, error) {
@@ -30,11 +26,6 @@ type Config struct {
 }
 
 func (c Config) ToYAML() ([]byte, error) { return yaml.Marshal(c) }
-
-type JobCacheItem struct {
-	Instantiations []Job
-	Parameters     map[string]Parameter
-}
 
 func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 	var rootNode RawNode
@@ -70,12 +61,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		return nil, err
 	}
 
-	type RawOrb struct {
-		Commands  map[string]RawNode `yaml:"commands"`
-		Executors map[string]RawNode `yaml:"executors"`
-	}
-
-	orbs := make(map[string]RawOrb, len(root.Orbs))
+	orbs := make(Orbs, len(root.Orbs))
 
 	for name, orb := range root.Orbs {
 		src, err := GetOrbSource(orb)
@@ -86,7 +72,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		src = strings.ReplaceAll(src, "{{", "<<")
 		src = strings.ReplaceAll(src, "}}", ">>")
 
-		var raw RawOrb
+		var raw Orb
 		if err := yaml.Unmarshal([]byte(src), &raw); err != nil {
 			return nil, fmt.Errorf("failed to parse orb %s: %w", name, err)
 		}
@@ -110,12 +96,15 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		}
 
 		for i, workflowJob := range workflow.Jobs {
-			definition, ok := root.Jobs[workflowJob.Key]
+			jobNode, ok := root.Jobs[workflowJob.Key]
 			if !ok {
-				return nil, fmt.Errorf("workflow %q job at index %d references job definition %q that does not exist", workflowName, i, workflowJob.Key)
+				jobNode, ok = orbs.GetJobNode(workflowJob.Key)
+				if !ok {
+					return nil, fmt.Errorf("workflow %q job at index %d references job definition %q that does not exist", workflowName, i, workflowJob.Key)
+				}
 			}
 
-			parameters, err := getParametersFromNode(definition.Node)
+			parameters, err := getParametersFromNode(jobNode.Node)
 			if err != nil {
 				return nil, err
 			}
@@ -124,7 +113,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 				return nil, PrettyIndentErr{Message: "parameter error(s) instantiating workflow at %q.%q:", Errors: errs}
 			}
 
-			job, err := applyParams[Job](definition.Node, parameters.JoinDefaults(workflowJob.Params.AsMap()))
+			job, err := applyParams[Job](jobNode.Node, parameters.JoinDefaults(workflowJob.Params.AsMap()))
 			if err != nil {
 				return nil, err
 			}
@@ -132,18 +121,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 			if job.Executor.Name != "" {
 				exNode, ok := root.Executors[job.Executor.Name]
 				if !ok {
-					exNode, ok = func() (RawNode, bool) {
-						before, after, ok := strings.Cut(job.Executor.Name, "/")
-						if !ok {
-							return RawNode{}, false
-						}
-						orbDef, ok := orbs[before]
-						if !ok {
-							return RawNode{}, false
-						}
-						node, ok := orbDef.Executors[after]
-						return node, ok
-					}()
+					exNode, ok = orbs.GetExecutorNode(job.Executor.Name)
 					if !ok {
 						return nil, fmt.Errorf("executor not found: %s", job.Executor.Name)
 					}
@@ -166,7 +144,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 			steps = append(steps, job.Steps...)
 			steps = append(steps, workflowJob.PostSteps...)
 
-			job.Steps, err = expandMultiStep(root.Commands, steps)
+			job.Steps, err = expandMultiStep(root.Commands, orbs, steps)
 			if err != nil {
 				return nil, err
 			}
@@ -260,60 +238,6 @@ func validateParameters(parameters map[string]Parameter, values ParamValues) (er
 	return
 }
 
-var (
-	paramExpr         = regexp.MustCompile(`<<(\s*parameters\.\w+)\s*>>`)
-	pipelineParamExpr = regexp.MustCompile(`<<\s*pipeline\.parameters\.\w+\s*>>`)
-)
-
-func toHandlebars(source string, expr *regexp.Regexp) string {
-	return expr.ReplaceAllStringFunc(source, func(s string) string {
-		raw := []byte(s)
-		raw[0], raw[1], raw[len(raw)-2], raw[len(raw)-1] = '{', '{', '}', '}'
-		return string(raw)
-	})
-}
-
-func applyParams[T any](node *yaml.Node, params map[string]any) (*T, error) {
-	return apply[T](node, paramExpr, map[string]any{"parameters": params})
-}
-
-func applyPipelineParams[T any](node *yaml.Node, params map[string]any) (*T, error) {
-	return apply[T](node, pipelineParamExpr, map[string]any{"pipeline": map[string]any{"parameters": params}})
-}
-
-func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (*T, error) {
-	var template bytes.Buffer
-	if err := yaml.NewEncoder(&template).Encode(node); err != nil {
-		return nil, err
-	}
-
-	handlebarTmpl := toHandlebars(template.String(), expr)
-
-	raw, err := raymond.Render(handlebarTmpl, params)
-	if err != nil {
-		return nil, err
-	}
-
-	dst := new(T)
-	if err := yaml.Unmarshal([]byte(raw), dst); err != nil {
-		fmt.Println("---debug---")
-		fmt.Println(handlebarTmpl)
-		fmt.Println(params)
-		fmt.Println("-----------")
-		return nil, err
-	}
-
-	return dst, nil
-}
-
-func toParamValues(m map[string]any) ParamValues {
-	result := ParamValues{Values: make(map[string]ParamValue, len(m))}
-	for k, v := range m {
-		result.Values[k] = ParamValue{value: v}
-	}
-	return result
-}
-
 func getParametersFromNode(node *yaml.Node) (Parameters, error) {
 	var parameterNode struct {
 		Parameters Parameters `yaml:"parameters"`
@@ -324,10 +248,10 @@ func getParametersFromNode(node *yaml.Node) (Parameters, error) {
 	return parameterNode.Parameters, nil
 }
 
-func expandMultiStep(commands map[string]RawNode, steps []Step) ([]Step, error) {
+func expandMultiStep(commands map[string]RawNode, orbs Orbs, steps []Step) ([]Step, error) {
 	var result []Step
 	for _, substep := range steps {
-		if substeps, err := expandStep(commands, substep); err != nil {
+		if substeps, err := expandStep(commands, orbs, substep); err != nil {
 			return nil, err
 		} else {
 			result = append(result, substeps...)
@@ -336,24 +260,27 @@ func expandMultiStep(commands map[string]RawNode, steps []Step) ([]Step, error) 
 	return result, nil
 }
 
-func expandStep(commands map[string]RawNode, step Step) ([]Step, error) {
+func expandStep(commands map[string]RawNode, orbs Orbs, step Step) ([]Step, error) {
 	switch {
 	case step.Type == "when":
 		if !step.When.Condition.Evaluate() {
 			return nil, nil
 		}
-		return expandMultiStep(commands, step.When.Steps)
+		return expandMultiStep(commands, orbs, step.When.Steps)
 	case step.Type == "unless":
 		if !step.Unless.Condition.Evaluate() {
 			return nil, nil
 		}
-		return expandMultiStep(commands, step.Unless.Steps)
+		return expandMultiStep(commands, orbs, step.Unless.Steps)
 	case slices.Contains(stepCmds, step.Type):
 		return []Step{step}, nil
 	default:
 		cmdNode, ok := commands[step.Type]
 		if !ok {
-			return nil, fmt.Errorf("command not found: %s", step.Type)
+			cmdNode, ok = orbs.GetCommandNode(step.Type)
+			if !ok {
+				return nil, fmt.Errorf("command not found: %s", step.Type)
+			}
 		}
 
 		parameters, err := getParametersFromNode(cmdNode.Node)
@@ -370,6 +297,52 @@ func expandStep(commands map[string]RawNode, step Step) ([]Step, error) {
 			return nil, err
 		}
 
-		return expandMultiStep(commands, cmd.Steps)
+		return expandMultiStep(commands, orbs, cmd.Steps)
 	}
+}
+
+type Orb struct {
+	Jobs      map[string]RawNode `yaml:"jobs"`
+	Commands  map[string]RawNode `yaml:"commands"`
+	Executors map[string]RawNode `yaml:"executors"`
+}
+type Orbs map[string]Orb
+
+func (orbs Orbs) GetExecutorNode(ref string) (RawNode, bool) {
+	before, after, ok := strings.Cut(ref, "/")
+	if !ok {
+		return RawNode{}, false
+	}
+	orb, ok := orbs[before]
+	if !ok {
+		return RawNode{}, false
+	}
+	node, ok := orb.Executors[after]
+	return node, ok
+}
+
+func (orbs Orbs) GetJobNode(ref string) (RawNode, bool) {
+	before, after, ok := strings.Cut(ref, "/")
+	if !ok {
+		return RawNode{}, false
+	}
+	orb, ok := orbs[before]
+	if !ok {
+		return RawNode{}, false
+	}
+	node, ok := orb.Jobs[after]
+	return node, ok
+}
+
+func (orbs Orbs) GetCommandNode(ref string) (RawNode, bool) {
+	before, after, ok := strings.Cut(ref, "/")
+	if !ok {
+		return RawNode{}, false
+	}
+	orb, ok := orbs[before]
+	if !ok {
+		return RawNode{}, false
+	}
+	node, ok := orb.Commands[after]
+	return node, ok
 }
