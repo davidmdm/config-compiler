@@ -10,7 +10,7 @@ import (
 
 var (
 	paramExpr         = regexp.MustCompile(`<<(\s*parameters\.[\w-]+)\s*>>`)
-	pipelineParamExpr = regexp.MustCompile(`<<\s*pipeline\.parameters\.[\w-]+\s*>>`)
+	pipelineParamExpr = regexp.MustCompile(`<<\s*pipeline\.[\w-]+(\.[\w-]+)*\s*>>`)
 )
 
 func toHandlebars(source string, expr *regexp.Regexp) string {
