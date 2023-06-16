@@ -21,15 +21,52 @@ type Config struct {
 	Executors  map[string]Executor  `yaml:"executors,omitempty"`
 }
 
-func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
+type ApprovalJob struct {
+	Index int
+	Job   WorkflowJob
+}
+
+type MatrixJob struct {
+	MatrixValues []KV
+	Job          *Job
+}
+
+type compilerState struct {
+	Jobs      map[string][]MatrixJob
+	Workflows map[string][]*Job
+	Approvals map[string][]ApprovalJob
+}
+
+type Compiler struct {
+	root struct {
+		Setup     bool                `yaml:"setup"`
+		Orbs      map[string]string   `yaml:"orbs"`
+		Workflows map[string]Workflow `yaml:"workflows"`
+		Jobs      map[string]RawNode  `yaml:"jobs"`
+		Commands  map[string]RawNode  `yaml:"commands"`
+		Executors map[string]RawNode  `yaml:"executors"`
+	}
+
+	orbs Orbs
+
+	state compilerState
+}
+
+func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte, error) {
+	c.state = compilerState{
+		Jobs:      map[string][]MatrixJob{},
+		Workflows: map[string][]*Job{},
+		Approvals: map[string][]ApprovalJob{},
+	}
+
 	var rootNode RawNode
 	if err := yaml.Unmarshal(source, &rootNode); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid source: %v", err)
 	}
 
 	parameters, err := getParametersFromNode(rootNode.Node)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get pipeline parameter definition: %v", err)
 	}
 
 	if errs := validateParameters(parameters, toParamValues(pipelineParams)); len(errs) > 0 {
@@ -42,22 +79,13 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		rootNode = *node
 	}
 
-	var root struct {
-		Setup     bool                `yaml:"setup"`
-		Orbs      map[string]string   `yaml:"orbs"`
-		Workflows map[string]Workflow `yaml:"workflows"`
-		Jobs      map[string]RawNode  `yaml:"jobs"`
-		Commands  map[string]RawNode  `yaml:"commands"`
-		Executors map[string]RawNode  `yaml:"executors"`
-	}
-
-	if err := rootNode.Decode(&root); err != nil {
+	if err := rootNode.Decode(&c.root); err != nil {
 		return nil, err
 	}
 
-	orbs := make(Orbs, len(root.Orbs))
+	c.orbs = make(Orbs, len(c.root.Orbs))
 
-	for name, orb := range root.Orbs {
+	for name, orb := range c.root.Orbs {
 		src, err := GetOrbSource(orb)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get orb: %s", orb)
@@ -70,148 +98,61 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		if err := yaml.Unmarshal([]byte(src), &raw); err != nil {
 			return nil, fmt.Errorf("failed to parse orb %s: %w", name, err)
 		}
-		orbs[name] = raw
-	}
-
-	type ApprovalJob struct {
-		Index int
-		Job   WorkflowJob
-	}
-
-	type MatrixJob struct {
-		MatrixValues []KV
-		Job          *Job
-	}
-
-	state := struct {
-		Jobs      map[string][]MatrixJob
-		Workflows map[string][]*Job
-		Approvals map[string][]ApprovalJob
-	}{
-		Jobs:      map[string][]MatrixJob{},
-		Workflows: map[string][]*Job{},
-		Approvals: map[string][]ApprovalJob{},
+		c.orbs[name] = raw
 	}
 
 	// First pass through workflows simply validates the workflows reference valid jobs, and that the
 	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
 	// it is written to the compiled version for future processing.
-	for workflowName, workflow := range root.Workflows {
+	for workflowName, workflow := range c.root.Workflows {
 		if (workflow.When != nil && !workflow.When.Evaluate()) || (workflow.Unless != nil && workflow.Unless.Evaluate()) {
 			continue
 		}
 
 		for i, workflowJob := range workflow.Jobs {
 			if workflowJob.Type == "approval" {
-				state.Approvals[workflowName] = append(state.Approvals[workflowName], ApprovalJob{
+				c.state.Approvals[workflowName] = append(c.state.Approvals[workflowName], ApprovalJob{
 					Index: i,
 					Job:   workflowJob,
 				})
 				continue
 			}
 
-			jobNode, ok := root.Jobs[workflowJob.Key]
+			jobNode, ok := c.root.Jobs[workflowJob.Key]
 			if !ok {
-				jobNode, ok = orbs.GetJobNode(workflowJob.Key)
+				jobNode, ok = c.orbs.GetJobNode(workflowJob.Key)
 				if !ok {
 					return nil, fmt.Errorf("workflow %q job at index %d references job definition %q that does not exist", workflowName, i, workflowJob.Key)
 				}
 			}
 
-			matrixKVs := flattenMatrix(workflowJob.Matrix.Parameters)
+			matrixKVs := flattenKeyedMatrix(workflowJob.Matrix.Parameters)
 
 			if len(matrixKVs) == 0 {
 				matrixKVs = make([][]KV, 1)
 			}
 
 			for _, matrix := range matrixKVs {
-				parameters, err := getParametersFromNode(jobNode.Node)
-				if err != nil {
+				if err := c.processJob(workflowName, workflowJob, matrix, jobNode.Node); err != nil {
 					return nil, err
 				}
-
-				paramValues := func() ParamValues {
-					if len(matrix) == 0 {
-						return workflowJob.Params
-					}
-					values := map[string]ParamValue{}
-					for _, kv := range matrix {
-						values[kv.Key] = ParamValue{value: kv.Value}
-					}
-					maps.Copy(values, workflowJob.Params.Values)
-					return ParamValues{Values: values}
-				}()
-
-				if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
-					return nil, PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) instantiating workflow at %s.%s:", workflowName, workflowJob.Key), Errors: errs}
-				}
-
-				job, err := applyParams[Job](jobNode.Node, parameters.JoinDefaults(paramValues.AsMap()))
-				if err != nil {
-					return nil, err
-				}
-
-				if job.Executor.Name != "" {
-					exNode, ok := root.Executors[job.Executor.Name]
-					if !ok {
-						exNode, ok = orbs.GetExecutorNode(job.Executor.Name)
-						if !ok {
-							return nil, fmt.Errorf("executor not found: %s", job.Executor.Name)
-						}
-					}
-
-					parameters, err := getParametersFromNode(exNode.Node)
-					if err != nil {
-						return nil, err
-					}
-
-					ex, err := applyParams[Executor](exNode.Node, parameters.JoinDefaults(job.Executor.ParamValues.AsMap()))
-					if err != nil {
-						return nil, err
-					}
-					job.InlineExecutor = InlineExecutor(*ex)
-				}
-
-				var steps []Step
-				steps = append(steps, workflowJob.PreSteps...)
-				steps = append(steps, job.Steps...)
-				steps = append(steps, workflowJob.PostSteps...)
-
-				job.Steps, err = expandMultiStep(root.Commands, orbs, "", steps)
-				if err != nil {
-					return nil, err
-				}
-
-				jobName := workflowJob.Name
-				if jobName == "" {
-					jobName = workflowJob.Key
-				}
-
-				jobIdx := slices.IndexFunc(state.Jobs[jobName], func(j MatrixJob) bool {
-					return reflect.DeepEqual(job, j.Job)
-				})
-
-				if jobIdx < 0 {
-					state.Jobs[jobName] = append(state.Jobs[jobName], MatrixJob{
-						MatrixValues: matrix,
-						Job:          job,
-					})
-				} else {
-					job = state.Jobs[jobName][jobIdx].Job
-				}
-
-				state.Workflows[workflowName] = append(state.Workflows[workflowName], job)
 			}
 		}
 	}
 
+	cfg := c.compile()
+
+	return yaml.Marshal(cfg)
+}
+
+func (c Compiler) compile() Config {
 	compiled := Config{
 		Version:   2,
 		Jobs:      map[string]Job{},
 		Workflows: map[string]Workflow{},
 	}
 
-	for name, matrixJobs := range state.Jobs {
+	for name, matrixJobs := range c.state.Jobs {
 		jobTotal := len(matrixJobs)
 		for i, matrixJob := range matrixJobs {
 
@@ -245,82 +186,112 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 		}
 	}
 
-	for name, jobs := range state.Workflows {
+	for name, jobs := range c.state.Workflows {
 		workflowJobs := make([]WorkflowJob, len(jobs))
 		for i, j := range jobs {
 			workflowJobs[i] = WorkflowJob{Key: j.name}
 		}
 
-		targetWorkflow := root.Workflows[name]
+		targetWorkflow := c.root.Workflows[name]
 		targetWorkflow.Unless = nil
 		targetWorkflow.When = nil
 		targetWorkflow.Jobs = workflowJobs
 
-		for i, approval := range state.Approvals[name] {
+		for i, approval := range c.state.Approvals[name] {
 			targetWorkflow.Jobs = slices.Insert(targetWorkflow.Jobs, approval.Index+i, approval.Job)
 		}
 
 		compiled.Workflows[name] = targetWorkflow
 	}
 
-	return &compiled, nil
+	return compiled
 }
 
-func validateParameters(parameters map[string]Parameter, values ParamValues) (errs []error) {
-	var missingArgs []string
-	for name, parameter := range parameters {
-		value, ok := values.Lookup(name)
-		if !ok || value.value == nil {
-			if parameter.Default == nil {
-				missingArgs = append(missingArgs, name)
+func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matrix []KV, jobNode *yaml.Node) error {
+	parameters, err := getParametersFromNode(jobNode)
+	if err != nil {
+		return err
+	}
+
+	paramValues := func() ParamValues {
+		if len(matrix) == 0 {
+			return workflowJob.Params
+		}
+		values := map[string]ParamValue{}
+		for _, kv := range matrix {
+			values[kv.Key] = ParamValue{value: kv.Value}
+		}
+		maps.Copy(values, workflowJob.Params.Values)
+		return ParamValues{Values: values}
+	}()
+
+	if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
+		return PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) instantiating workflow at %s.%s:", workflowName, workflowJob.Key), Errors: errs}
+	}
+
+	job, err := applyParams[Job](jobNode, parameters.JoinDefaults(paramValues.AsMap()))
+	if err != nil {
+		return err
+	}
+
+	if job.Executor.Name != "" {
+		exNode, ok := c.root.Executors[job.Executor.Name]
+		if !ok {
+			exNode, ok = c.orbs.GetExecutorNode(job.Executor.Name)
+			if !ok {
+				return fmt.Errorf("executor not found: %s", job.Executor.Name)
 			}
-			continue
 		}
 
-		if actualType := value.GetType(); parameter.Type != actualType {
-			switch {
-			case parameter.Type == "enum" && !slices.Contains(parameter.Enum, value.value):
-				errs = append(errs, ParamEnumMismatchErr{
-					Name:    name,
-					Targets: parameter.Enum,
-					Value:   value.value,
-				})
-
-			case parameter.Type == "env_var_name" && actualType == "string":
-				continue
-
-			default:
-				errs = append(errs, ParamTypeMismatchErr{
-					Name: name,
-					Want: parameter.Type,
-					Got:  actualType,
-				})
-
-			}
+		parameters, err := getParametersFromNode(exNode.Node)
+		if err != nil {
+			return err
 		}
+
+		ex, err := applyParams[Executor](exNode.Node, parameters.JoinDefaults(job.Executor.ParamValues.AsMap()))
+		if err != nil {
+			return err
+		}
+		job.InlineExecutor = InlineExecutor(*ex)
 	}
 
-	if len(missingArgs) > 0 {
-		errs = append(errs, MissingParamsErr(missingArgs))
+	var steps []Step
+	steps = append(steps, workflowJob.PreSteps...)
+	steps = append(steps, job.Steps...)
+	steps = append(steps, workflowJob.PostSteps...)
+
+	job.Steps, err = c.expandMultiStep("", steps)
+	if err != nil {
+		return err
 	}
 
-	return
+	jobName := workflowJob.Name
+	if jobName == "" {
+		jobName = workflowJob.Key
+	}
+
+	jobIdx := slices.IndexFunc(c.state.Jobs[jobName], func(j MatrixJob) bool {
+		return reflect.DeepEqual(job, j.Job)
+	})
+
+	if jobIdx < 0 {
+		c.state.Jobs[jobName] = append(c.state.Jobs[jobName], MatrixJob{
+			MatrixValues: matrix,
+			Job:          job,
+		})
+	} else {
+		job = c.state.Jobs[jobName][jobIdx].Job
+	}
+
+	c.state.Workflows[workflowName] = append(c.state.Workflows[workflowName], job)
+
+	return nil
 }
 
-func getParametersFromNode(node *yaml.Node) (Parameters, error) {
-	var parameterNode struct {
-		Parameters Parameters `yaml:"parameters"`
-	}
-	if err := node.Decode(&parameterNode); err != nil {
-		return nil, err
-	}
-	return parameterNode.Parameters, nil
-}
-
-func expandMultiStep(commands map[string]RawNode, orbs Orbs, orbCtx string, steps []Step) ([]Step, error) {
+func (c Compiler) expandMultiStep(orbCtx string, steps []Step) ([]Step, error) {
 	var result []Step
 	for _, substep := range steps {
-		if substeps, err := expandStep(commands, orbs, orbCtx, substep); err != nil {
+		if substeps, err := c.expandStep(orbCtx, substep); err != nil {
 			return nil, err
 		} else {
 			result = append(result, substeps...)
@@ -329,24 +300,24 @@ func expandMultiStep(commands map[string]RawNode, orbs Orbs, orbCtx string, step
 	return result, nil
 }
 
-func expandStep(commands map[string]RawNode, orbs Orbs, orbCtx string, step Step) ([]Step, error) {
+func (c Compiler) expandStep(orbCtx string, step Step) ([]Step, error) {
 	switch {
 	case step.Type == "when":
 		if !step.When.Condition.Evaluate() {
 			return nil, nil
 		}
-		return expandMultiStep(commands, orbs, orbCtx, step.When.Steps)
+		return c.expandMultiStep(orbCtx, step.When.Steps)
 	case step.Type == "unless":
 		if !step.Unless.Condition.Evaluate() {
 			return nil, nil
 		}
-		return expandMultiStep(commands, orbs, orbCtx, step.Unless.Steps)
+		return c.expandMultiStep(orbCtx, step.Unless.Steps)
 	case slices.Contains(stepCmds, step.Type):
 		return []Step{step}, nil
 	default:
-		cmdNode, ok := commands[step.Type]
+		cmdNode, ok := c.root.Commands[step.Type]
 		if !ok {
-			cmdNode, orbCtx, ok = orbs.GetCommandNode(orbCtx, step.Type)
+			cmdNode, orbCtx, ok = c.orbs.GetCommandNode(orbCtx, step.Type)
 			if !ok {
 				return nil, fmt.Errorf("command not found: %s", step.Type)
 			}
@@ -366,7 +337,7 @@ func expandStep(commands map[string]RawNode, orbs Orbs, orbCtx string, step Step
 			return nil, err
 		}
 
-		return expandMultiStep(commands, orbs, orbCtx, cmd.Steps)
+		return c.expandMultiStep(orbCtx, cmd.Steps)
 	}
 }
 
@@ -375,6 +346,7 @@ type Orb struct {
 	Commands  map[string]RawNode `yaml:"commands"`
 	Executors map[string]RawNode `yaml:"executors"`
 }
+
 type Orbs map[string]Orb
 
 func (orbs Orbs) GetExecutorNode(ref string) (RawNode, bool) {
@@ -417,70 +389,53 @@ func (orbs Orbs) GetCommandNode(orbCtx, ref string) (RawNode, string, bool) {
 	return node, before, ok
 }
 
-type KV struct {
-	Key   string
-	Value any
+func getParametersFromNode(node *yaml.Node) (Parameters, error) {
+	var parameterNode struct {
+		Parameters Parameters `yaml:"parameters"`
+	}
+	if err := node.Decode(&parameterNode); err != nil {
+		return nil, err
+	}
+	return parameterNode.Parameters, nil
 }
 
-func flattenMatrix(m map[string][]any) [][]KV {
-	keys := maps.Keys(m)
-	slices.Sort(keys)
+func validateParameters(parameters map[string]Parameter, values ParamValues) (errs []error) {
+	var missingArgs []string
+	for name, parameter := range parameters {
+		value, ok := values.Lookup(name)
+		if !ok || value.value == nil {
+			if parameter.Default == nil {
+				missingArgs = append(missingArgs, name)
+			}
+			continue
+		}
 
-	matrix := make([][]any, len(keys))
-	for i, k := range keys {
-		matrix[i] = m[k]
-	}
+		if actualType := value.GetType(); parameter.Type != actualType {
+			switch {
+			case parameter.Type == "enum" && !slices.Contains(parameter.Enum, value.value):
+				errs = append(errs, ParamEnumMismatchErr{
+					Name:    name,
+					Targets: parameter.Enum,
+					Value:   value.value,
+				})
 
-	rows := crossProduct(matrix)
+			case parameter.Type == "env_var_name" && actualType == "string":
+				continue
 
-	result := make([][]KV, len(rows))
-	for i, row := range rows {
-		keyValues := make([]KV, len(row))
-		for j, v := range row {
-			keyValues[j] = KV{
-				Key:   keys[j],
-				Value: v,
+			default:
+				errs = append(errs, ParamTypeMismatchErr{
+					Name: name,
+					Want: parameter.Type,
+					Got:  actualType,
+				})
+
 			}
 		}
-		result[i] = keyValues
 	}
 
-	return result
-}
-
-func crossProduct[T any](m [][]T) [][]T {
-	if len(m) == 0 {
-		return nil
+	if len(missingArgs) > 0 {
+		errs = append(errs, MissingParamsErr(missingArgs))
 	}
 
-	// len(m) parameters, so each row shall be of size len(m).
-	rowSize := len(m)
-
-	total := 1
-	for _, set := range m {
-		total *= len(set)
-	}
-
-	subTotals := make([]int, len(m))
-	for i := range m {
-		subTotals[i] = func() int {
-			total := 1
-			for _, set := range m[i+1:] {
-				total *= len(set)
-			}
-			return total
-		}()
-	}
-
-	result := make([][]T, total)
-
-	for i := 0; i < total; i++ {
-		row := make([]T, rowSize)
-		for pos := 0; pos < rowSize; pos++ {
-			row[pos] = m[pos][(i/subTotals[pos])%len(m[pos])]
-		}
-		result[i] = row
-	}
-
-	return result
+	return
 }

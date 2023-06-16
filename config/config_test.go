@@ -47,10 +47,9 @@ func TestConfigs(t *testing.T) {
 				inputData := parts[0]
 				expectedData := parts[1]
 
-				cfg, err := config.Compile(inputData, nil)
-				require.NoError(t, err)
+				compiler := config.Compiler{}
 
-				compiledData, err := yaml.Marshal(cfg)
+				compiledData, err := compiler.Compile(inputData, nil)
 				require.NoError(t, err)
 
 				var (
@@ -91,7 +90,9 @@ func TestConfigs(t *testing.T) {
 				}
 				require.NoError(t, yaml.Unmarshal(parts[1], &expected))
 
-				_, err = config.Compile(inputData, nil)
+				compiler := config.Compiler{}
+
+				_, err = compiler.Compile(inputData, nil)
 				require.EqualError(t, err, expected.Error)
 			})
 		}
