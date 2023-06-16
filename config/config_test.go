@@ -18,48 +18,82 @@ import (
 //go:embed test_assets
 var testAssets embed.FS
 
-var magicSeperator = []byte(`--- # input above / compiled below`)
+var (
+	compiledMagicSeparator = []byte(`--- # input above / compiled below`)
+	errorMagicSeparator    = []byte(`--- # input above / error below`)
+)
 
 func TestConfigs(t *testing.T) {
-	entries, err := testAssets.ReadDir("test_assets")
-	require.NoError(t, err)
+	t.Run("success", func(t *testing.T) {
+		entries, err := testAssets.ReadDir("test_assets/success")
+		require.NoError(t, err)
 
-	require.NoError(t, os.MkdirAll("test_output", 0o777))
+		require.NoError(t, os.MkdirAll("test_output", 0o777))
 
-	for _, file := range entries {
+		for _, file := range entries {
 
-		if file.IsDir() {
-			t.Fatalf("encountered directory within test_assets: %s", file.Name())
+			if file.IsDir() {
+				t.Fatalf("encountered directory within test_assets/success: %s", file.Name())
+			}
+
+			testName := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
+
+			t.Run(testName, func(t *testing.T) {
+				data, err := testAssets.ReadFile(path.Join("test_assets/success", file.Name()))
+				require.NoError(t, err)
+
+				parts := bytes.Split(data, compiledMagicSeparator)
+
+				inputData := parts[0]
+				expectedData := parts[1]
+
+				cfg, err := config.Compile(inputData, nil)
+				require.NoError(t, err)
+
+				compiledData, err := yaml.Marshal(cfg)
+				require.NoError(t, err)
+
+				var (
+					expected any
+					actual   any
+				)
+				require.NoError(t, yaml.Unmarshal(expectedData, &expected))
+				require.NoError(t, yaml.Unmarshal(compiledData, &actual))
+
+				_ = os.WriteFile(filepath.Join("test_output", file.Name()), compiledData, 0o777)
+
+				require.EqualValues(t, expected, actual)
+			})
 		}
+	})
 
-		testName := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
+	t.Run("error", func(t *testing.T) {
+		entries, err := testAssets.ReadDir("test_assets/error")
+		require.NoError(t, err)
 
-		t.Run(testName, func(t *testing.T) {
-			data, err := testAssets.ReadFile(path.Join("test_assets", file.Name()))
-			require.NoError(t, err)
+		for _, file := range entries {
+			if file.IsDir() {
+				t.Fatalf("encountered directory within test_assets/error: %s", file.Name())
+			}
 
-			parts := bytes.Split(data, magicSeperator)
+			testName := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
 
-			inputData := parts[0]
-			expectedData := parts[1]
+			t.Run(testName, func(t *testing.T) {
+				data, err := testAssets.ReadFile(path.Join("test_assets/error", file.Name()))
+				require.NoError(t, err)
 
-			cfg, err := config.Compile(inputData, nil)
-			require.NoError(t, err)
+				parts := bytes.Split(data, errorMagicSeparator)
 
-			compiledData, err := yaml.Marshal(cfg)
-			require.NoError(t, err)
+				inputData := parts[0]
 
-			var (
-				expected any
-				actual   any
-			)
-			require.NoError(t, yaml.Unmarshal(expectedData, &expected))
-			require.NoError(t, yaml.Unmarshal(compiledData, &actual))
+				var expected struct {
+					Error string `yaml:"error"`
+				}
+				require.NoError(t, yaml.Unmarshal(parts[1], &expected))
 
-			_ = os.WriteFile(filepath.Join("test_output", file.Name()), compiledData, 0o777)
-
-			require.EqualValues(t, expected, actual)
-		})
-
-	}
+				_, err = config.Compile(inputData, nil)
+				require.EqualError(t, err, expected.Error)
+			})
+		}
+	})
 }

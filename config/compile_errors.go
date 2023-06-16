@@ -55,7 +55,7 @@ func (err PrettyIndentErr) Error() string {
 func indent(value string) string {
 	lines := strings.Split(value, "\n")
 	for i, line := range lines {
-		lines[i] = "\t" + line
+		lines[i] = "  " + line
 	}
 	return strings.Join(lines, "\n")
 }

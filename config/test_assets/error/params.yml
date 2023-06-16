@@ -1,0 +1,33 @@
+version: 2.1
+
+jobs:
+  test:
+    parameters:
+      image:
+        type: enum
+        enum: [go, node]
+      required:
+        type: boolean
+      mismatch:
+        type: string
+    docker:
+      - image: << parameters.image >>
+    environment:
+      MISMATCH: << parameters.mismatch >>
+    steps:
+      - run: do it
+
+workflows:
+  main:
+    jobs:
+      - test:
+          image: ruby
+          mismatch: 1.23
+
+--- # input above / error below
+
+error: |-
+  parameter error(s) instantiating workflow at main.test:
+    enum mismatch for param image: wanted one of (go, node) but got ruby
+    type mismatch for param mismatch: wanted string but got integer
+    missing required parameters: required
