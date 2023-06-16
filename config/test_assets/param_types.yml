@@ -1,0 +1,63 @@
+version: 2.1
+
+executors:
+  go:
+    parameters:
+      version:
+        type: enum
+        enum: ['1.20', '1.19', '1.18']
+    docker:
+      - image: go-<< parameters.version >>
+
+jobs:
+  test:
+    parameters:
+      deploy-env:
+        type: string
+      apply:
+        type: boolean
+      count:
+        type: integer
+      ex:
+        type: executor
+      steps:
+        type: steps
+    executor: << parameters.ex >>
+    environment:
+      DEPLOY_ENV: << parameters.deploy-env >>
+      COUNT: << parameters.count >>
+    steps:
+      - when:
+          condition: << parameters.apply >>
+          steps: << parameters.steps >>
+
+workflows:
+  main:
+    jobs:
+      - test:
+          deploy-env: staging
+          count: 5
+          apply: true
+          ex:
+            name: go
+            version: '1.20'
+          steps:
+            - run: it
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    environment:
+      COUNT: 5
+      DEPLOY_ENV: staging
+    steps:
+      - run:
+          command: it
+    docker:
+      - image: go-1.20
+workflows:
+  main:
+    jobs:
+      - test

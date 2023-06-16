@@ -1,9 +1,11 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
+	"github.com/aymerick/raymond"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,7 +46,15 @@ func toParamValues(m map[string]any) ParamValues {
 func (params ParamValues) AsMap() map[string]any {
 	result := make(map[string]any, len(params.Values))
 	for k, v := range params.Values {
-		result[k] = v.value
+		if t := v.GetType(); t == "executor" || t == "steps" {
+			raw, _ := yaml.Marshal(v.value)
+			var x any
+			yaml.Unmarshal(raw, &x)
+			raw, _ = json.Marshal(x)
+			result[k] = raymond.SafeString(raw)
+		} else {
+			result[k] = v.value
+		}
 	}
 	return result
 }

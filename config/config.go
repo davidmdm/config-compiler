@@ -143,7 +143,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 				}()
 
 				if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
-					return nil, PrettyIndentErr{Message: "parameter error(s) instantiating workflow at %q.%q:", Errors: errs}
+					return nil, PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) instantiating workflow at %s.%s:", workflowName, workflowJob.Key), Errors: errs}
 				}
 
 				job, err := applyParams[Job](jobNode.Node, parameters.JoinDefaults(paramValues.AsMap()))
