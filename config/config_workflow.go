@@ -7,10 +7,50 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type WorkflowCondition struct {
+	When *Condition `yaml:"when,omitempty"`
+}
+
+func (cond *WorkflowCondition) UnmarshalYAML(node *yaml.Node) error {
+	var unless struct {
+		Unless *Condition `yaml:"unless"`
+	}
+	_ = node.Decode(&unless)
+
+	if unless.Unless != nil {
+		cond.When = &Condition{SubCondition: SubCondition{Not: unless.Unless}}
+		return nil
+	}
+
+	var when struct {
+		When *Condition `yaml:"when"`
+	}
+
+	if err := node.Decode(&when); err != nil {
+		return err
+	}
+	cond.When = when.When
+
+	return nil
+}
+
 type Workflow struct {
-	Jobs   []WorkflowJob `yaml:"jobs"`
-	When   *Condition    `yaml:"when,omitempty"`
-	Unless *Condition    `yaml:"unless,omitempty"`
+	Jobs              []WorkflowJob `yaml:"jobs"`
+	WorkflowCondition `yaml:",inline"`
+}
+
+func (workflow *Workflow) UnmarshalYAML(node *yaml.Node) error {
+	var jobs struct {
+		Jobs []WorkflowJob `yaml:"jobs"`
+	}
+	if err := node.Decode(&jobs); err != nil {
+		return err
+	}
+	workflow.Jobs = jobs.Jobs
+	if err := node.Decode(&workflow.WorkflowCondition); err != nil {
+		return err
+	}
+	return nil
 }
 
 type JobMatrix struct {

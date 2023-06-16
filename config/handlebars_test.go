@@ -87,13 +87,3 @@ func TestToHandleBars(t *testing.T) {
 		}
 	})
 }
-
-// func TestApplyParams(t *testing.T) {
-// 	cfg := `image: << parameters.image >>`
-
-// 	var value map[string]any
-// 	require.NoError(t, yaml.Unmarshal([]byte(cfg), &value))
-
-// 	require.NoError(t, applyParams(&value, map[string]any{"image": "custom-image"}))
-// 	require.Equal(t, "custom-image", value["image"])
-// }

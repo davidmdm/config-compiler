@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 
@@ -59,48 +60,64 @@ func (cond *Condition) UnmarshalYAML(node *yaml.Node) error {
 	return node.Decode(&cond.Literal)
 }
 
-func (cond Condition) Evaluate() bool {
+func (cond *Condition) Evaluate() (bool, error) {
+	if cond == nil {
+		return true, nil
+	}
+
 	if len(cond.And) > 0 {
 		for _, subcond := range cond.And {
-			if !subcond.Evaluate() {
-				return false
+			ok, err := subcond.Evaluate()
+			if err != nil {
+				return false, err
+			}
+			if !ok {
+				return false, nil
 			}
 		}
-		return true
+		return true, nil
 	}
 
 	if len(cond.Or) > 0 {
 		for _, subcond := range cond.Or {
-			if subcond.Evaluate() {
-				return true
+			ok, err := subcond.Evaluate()
+			if err != nil {
+				return false, err
+			}
+			if ok {
+				return true, nil
 			}
 		}
-		return false
+		return false, nil
 	}
 
 	if cond.Not != nil {
-		return !cond.Not.Evaluate()
+		ok, err := cond.Not.Evaluate()
+		if err != nil {
+			return false, err
+		}
+		return !ok, nil
 	}
 
 	if size := len(cond.Equal); size > 0 {
 		if size == 1 {
-			return true
+			return true, nil
 		}
 		for i := 1; i < size; i++ {
 			if !reflect.DeepEqual(cond.Equal[i-1], cond.Equal[i]) {
-				return false
+				return false, nil
 			}
 		}
-		return true
+		return true, nil
 	}
 
 	if cond.Matches.Pattern != "" {
 		expression, err := regexp.Compile(cond.Matches.Pattern)
 		if err != nil {
-			panic("invalid pattern: " + cond.Matches.Pattern)
+			return false, fmt.Errorf("invalid pattern: %s - %v", cond.Matches.Pattern, err)
 		}
-		return expression.MatchString(cond.Matches.Value)
+		return expression.MatchString(cond.Matches.Value), nil
 	}
 
-	return !reflect.ValueOf(cond.Literal).IsZero()
+	return !reflect.ValueOf(cond.Literal).IsZero(), nil
 }

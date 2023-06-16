@@ -105,8 +105,13 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
 	// it is written to the compiled version for future processing.
 	for workflowName, workflow := range c.root.Workflows {
-		if (workflow.When != nil && !workflow.When.Evaluate()) || (workflow.Unless != nil && workflow.Unless.Evaluate()) {
-			continue
+		if ok, err := workflow.When.Evaluate(); !ok || err != nil {
+			if err != nil {
+				return nil, fmt.Errorf("invalid workflow condition: %v", err)
+			}
+			if !ok {
+				continue
+			}
 		}
 
 		for i, workflowJob := range workflow.Jobs {
@@ -193,7 +198,6 @@ func (c Compiler) compile() Config {
 		}
 
 		targetWorkflow := c.root.Workflows[name]
-		targetWorkflow.Unless = nil
 		targetWorkflow.When = nil
 		targetWorkflow.Jobs = workflowJobs
 
@@ -303,15 +307,14 @@ func (c Compiler) expandMultiStep(orbCtx string, steps []Step) ([]Step, error) {
 func (c Compiler) expandStep(orbCtx string, step Step) ([]Step, error) {
 	switch {
 	case step.Type == "when":
-		if !step.When.Condition.Evaluate() {
+		ok, err := step.When.Condition.Evaluate()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
 			return nil, nil
 		}
 		return c.expandMultiStep(orbCtx, step.When.Steps)
-	case step.Type == "unless":
-		if !step.Unless.Condition.Evaluate() {
-			return nil, nil
-		}
-		return c.expandMultiStep(orbCtx, step.Unless.Steps)
 	case slices.Contains(stepCmds, step.Type):
 		return []Step{step}, nil
 	default:
