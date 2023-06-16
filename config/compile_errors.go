@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 type ParamTypeMismatchErr struct {
@@ -49,6 +51,7 @@ func (err PrettyIndentErr) Error() string {
 	for i, e := range err.Errors {
 		indentedErrors[i] = indent(e.Error())
 	}
+	slices.Sort(indentedErrors)
 	return err.Message + "\n" + strings.Join(indentedErrors, "\n")
 }
 

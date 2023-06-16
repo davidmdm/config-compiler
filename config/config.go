@@ -188,7 +188,7 @@ func Compile(source []byte, pipelineParams map[string]any) (*Config, error) {
 				}
 
 				jobIdx := slices.IndexFunc(state.Jobs[jobName], func(j MatrixJob) bool {
-					return reflect.DeepEqual(job, j)
+					return reflect.DeepEqual(job, j.Job)
 				})
 
 				if jobIdx < 0 {

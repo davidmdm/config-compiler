@@ -29,5 +29,5 @@ workflows:
 error: |-
   parameter error(s) instantiating workflow at main.test:
     enum mismatch for param image: wanted one of (go, node) but got ruby
-    type mismatch for param mismatch: wanted string but got integer
     missing required parameters: required
+    type mismatch for param mismatch: wanted string but got integer

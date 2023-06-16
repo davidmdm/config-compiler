@@ -1,0 +1,83 @@
+version: 2.1
+
+jobs:
+  test:
+    macos:
+      xcode: v1.2.1
+    steps:
+      - run: it
+
+workflows:
+  yes_basic:
+    when: true
+    jobs: &jobs
+      - test
+  no_basic:
+    when: false
+    jobs: *jobs
+
+  yes_and:
+    when:
+      and:
+        - yes
+        - sir
+    jobs: *jobs
+
+  no_and:
+    when:
+      and:
+        - yes
+        - false
+    jobs: *jobs
+
+  yes_or:
+    when:
+      or:
+        - yes
+        - false
+    jobs: *jobs
+
+  no_or:
+    when:
+      or:
+        - false
+        - 0
+        - ''
+    jobs: *jobs
+
+  yes_nested:
+    when:
+      and:
+        - true
+        - or:
+            - true
+            - false
+
+  no_nested:
+    when:
+      and:
+        - true
+        - or:
+            - 0
+            - false
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: it
+    macos:
+      xcode: v1.2.1
+workflows:
+  yes_and:
+    jobs:
+      - test
+  yes_basic:
+    jobs:
+      - test
+  yes_or:
+    jobs:
+      - test
