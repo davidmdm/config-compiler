@@ -39,12 +39,12 @@ type compilerState struct {
 
 type Compiler struct {
 	root struct {
-		Setup     bool                `yaml:"setup"`
-		Orbs      map[string]string   `yaml:"orbs"`
-		Workflows map[string]Workflow `yaml:"workflows"`
-		Jobs      map[string]RawNode  `yaml:"jobs"`
-		Commands  map[string]RawNode  `yaml:"commands"`
-		Executors map[string]RawNode  `yaml:"executors"`
+		Setup     bool               `yaml:"setup"`
+		Workflows Workflows          `yaml:"workflows"`
+		Orbs      map[string]string  `yaml:"orbs"`
+		Jobs      map[string]RawNode `yaml:"jobs"`
+		Commands  map[string]RawNode `yaml:"commands"`
+		Executors map[string]RawNode `yaml:"executors"`
 	}
 
 	orbs Orbs

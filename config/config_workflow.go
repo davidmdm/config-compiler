@@ -7,6 +7,35 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Workflows map[string]Workflow
+
+func (workflows *Workflows) UnmarshalYAML(node *yaml.Node) error {
+	var raw map[string]RawNode
+	if err := node.Decode(&raw); err != nil {
+		return err
+	}
+
+	var errs []error
+	result := make(map[string]Workflow, len(raw))
+
+	for name, n := range raw {
+		var workflow Workflow
+		if err := n.Decode(&workflow); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %v", name, err))
+		} else {
+			result[name] = workflow
+		}
+	}
+
+	if len(errs) > 0 {
+		return PrettyIndentErr{Message: "problem(s) found with workflows:", Errors: errs}
+	}
+
+	*workflows = result
+
+	return nil
+}
+
 type Workflow struct {
 	Jobs []WorkflowJob `yaml:"jobs"`
 	When *Condition    `yaml:"when,omitempty"`

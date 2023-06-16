@@ -1,0 +1,11 @@
+version: 2.1
+
+workflows:
+  main:
+    jobs: []
+
+--- # input above / error below
+
+error: |-
+  problem(s) found with workflows:
+    main: workflow must contain at least one job

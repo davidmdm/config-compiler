@@ -3,5 +3,7 @@ playground
 
 config/test_output
 
+**/*.out
+
 **/*.debug
 
