@@ -1,0 +1,54 @@
+version: 2.1
+
+executors:
+  go:
+    docker:
+      - image: go1.20
+  ccc:
+    docker:
+      - image: ccc-dummy
+
+jobs:
+  test:
+    executor: go
+    steps:
+      - run: test
+
+  publish:
+    executor: ccc
+    steps:
+      - run: publish it!
+
+workflows:
+  main:
+    jobs:
+      - test
+      - approve-publish:
+          type: approval
+          requires: test
+      - publish
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  publish:
+    steps:
+      - run:
+          command: publish it!
+    docker:
+      - image: ccc-dummy
+  test:
+    steps:
+      - run:
+          command: test
+    docker:
+      - image: go1.20
+workflows:
+  main:
+    jobs:
+      - test
+      - approve-publish:
+          requires: test
+          type: approval
+      - publish
