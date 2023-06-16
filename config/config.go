@@ -433,6 +433,12 @@ func validateParameters(parameters map[string]Parameter, values ParamValues) (er
 		}
 	}
 
+	for name := range values.Values {
+		if _, ok := parameters[name]; !ok {
+			errs = append(errs, fmt.Errorf("unknown argument: %s", name))
+		}
+	}
+
 	if len(missingArgs) > 0 {
 		errs = append(errs, MissingParamsErr(missingArgs))
 	}

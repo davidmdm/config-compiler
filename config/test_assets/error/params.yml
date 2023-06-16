@@ -23,6 +23,7 @@ workflows:
       - test:
           image: ruby
           mismatch: 1.23
+          not-declared: arg
 
 --- # input above / error below
 
@@ -31,3 +32,4 @@ error: |-
     enum mismatch for param image: wanted one of (go, node) but got ruby
     missing required parameters: required
     type mismatch for param mismatch: wanted string but got integer
+    unknown argument: not-declared
