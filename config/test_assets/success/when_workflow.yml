@@ -45,6 +45,34 @@ workflows:
         - ''
     jobs: *jobs
 
+  yes_equal:
+    when:
+      equal:
+        - 1
+        - 1
+    jobs: *jobs
+
+  no_equal:
+    when:
+      equal:
+        - 1
+        - hello
+    jobs: *jobs
+
+  yes_match:
+    when:
+      matches:
+        pattern: ^hello
+        value: hello world
+    jobs: *jobs
+
+  no_match:
+    when:
+      matches:
+        pattern: ^hello
+        value: goodbye world
+    jobs: *jobs
+
   yes_nested:
     when:
       and:
@@ -52,6 +80,7 @@ workflows:
         - or:
             - true
             - false
+    jobs: *jobs
 
   no_nested:
     when:
@@ -60,6 +89,7 @@ workflows:
         - or:
             - 0
             - false
+    jobs: *jobs
 
 --- # input above / compiled below
 
@@ -76,6 +106,15 @@ workflows:
     jobs:
       - test
   yes_basic:
+    jobs:
+      - test
+  yes_equal:
+    jobs:
+      - test
+  yes_match:
+    jobs:
+      - test
+  yes_nested:
     jobs:
       - test
   yes_or:

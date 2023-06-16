@@ -7,49 +7,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type WorkflowCondition struct {
-	When *Condition `yaml:"when,omitempty"`
-}
-
-func (cond *WorkflowCondition) UnmarshalYAML(node *yaml.Node) error {
-	var unless struct {
-		Unless *Condition `yaml:"unless"`
-	}
-	_ = node.Decode(&unless)
-
-	if unless.Unless != nil {
-		cond.When = &Condition{SubCondition: SubCondition{Not: unless.Unless}}
-		return nil
-	}
-
-	var when struct {
-		When *Condition `yaml:"when"`
-	}
-
-	if err := node.Decode(&when); err != nil {
-		return err
-	}
-	cond.When = when.When
-
-	return nil
-}
-
 type Workflow struct {
-	Jobs              []WorkflowJob `yaml:"jobs"`
-	WorkflowCondition `yaml:",inline"`
+	Jobs []WorkflowJob `yaml:"jobs"`
+	When *Condition    `yaml:"when,omitempty"`
 }
 
 func (workflow *Workflow) UnmarshalYAML(node *yaml.Node) error {
-	var jobs struct {
-		Jobs []WorkflowJob `yaml:"jobs"`
+	var state struct {
+		Jobs   []WorkflowJob `yaml:"jobs"`
+		Unless *Condition    `yaml:"unless"`
+		When   *Condition    `yaml:"when"`
 	}
-	if err := node.Decode(&jobs); err != nil {
+	if err := node.Decode(&state); err != nil {
 		return err
 	}
-	workflow.Jobs = jobs.Jobs
-	if err := node.Decode(&workflow.WorkflowCondition); err != nil {
-		return err
+
+	if len(state.Jobs) == 0 {
+		return fmt.Errorf("workflow must contain at least one job")
 	}
+
+	workflow.Jobs = state.Jobs
+
+	if state.Unless != nil && state.When != nil {
+		return fmt.Errorf("cannot declare both when and unless at the same time")
+	}
+
+	if state.Unless != nil {
+		workflow.When = &Condition{SubCondition: SubCondition{Not: state.Unless}}
+		return nil
+	}
+
+	workflow.When = state.When
+
 	return nil
 }
 
