@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/davidmdm/yaml"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -63,6 +63,8 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 	if err := yaml.Unmarshal(source, &rootNode); err != nil {
 		return nil, fmt.Errorf("invalid source: %v", err)
 	}
+
+	resolveAliases(rootNode.Node)
 
 	parameters, err := getParametersFromNode(rootNode.Node)
 	if err != nil {

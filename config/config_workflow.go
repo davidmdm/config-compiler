@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"gopkg.in/yaml.v3"
+	"github.com/davidmdm/yaml"
 )
 
 type Workflows map[string]Workflow

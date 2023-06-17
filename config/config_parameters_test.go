@@ -4,10 +4,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/davidmdm/yaml"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
 )
 
 var yamlData = []byte(`first_name: john

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"reflect"
 
-	"gopkg.in/yaml.v3"
+	"github.com/davidmdm/yaml"
 )
 
 type Job struct {

@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	"github.com/aymerick/raymond"
-	"gopkg.in/yaml.v3"
+	"github.com/davidmdm/yaml"
 )
 
 var (

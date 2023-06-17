@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"regexp"
 
-	"gopkg.in/yaml.v3"
+	"github.com/davidmdm/yaml"
 )
 
 type ConditionalSteps struct {

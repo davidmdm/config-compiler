@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/davidmdm/yaml"
 	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
 )
 
 type Command struct {

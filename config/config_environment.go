@@ -1,6 +1,6 @@
 package config
 
-import "gopkg.in/yaml.v3"
+import "github.com/davidmdm/yaml"
 
 type Environment map[string]any
 

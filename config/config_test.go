@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"bytes"
+	"compiler/config"
 	"embed"
 	"os"
 	"path"
@@ -9,10 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"compiler/config"
-
+	"github.com/davidmdm/yaml"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 //go:embed test_assets

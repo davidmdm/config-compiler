@@ -1,7 +1,7 @@
 package config
 
 import (
-	"gopkg.in/yaml.v3"
+	"github.com/davidmdm/yaml"
 )
 
 type StringList []string
@@ -36,4 +36,15 @@ type RawNode struct{ *yaml.Node }
 func (n *RawNode) UnmarshalYAML(node *yaml.Node) error {
 	n.Node = node
 	return nil
+}
+
+func resolveAliases(node *yaml.Node) {
+	node.Anchor = ""
+	for _, n := range node.Content {
+		resolveAliases(n)
+	}
+	if node.Kind != yaml.AliasNode || node.Alias == nil {
+		return
+	}
+	*node = *node.Alias
 }
