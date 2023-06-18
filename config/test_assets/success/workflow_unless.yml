@@ -1,0 +1,34 @@
+version: 2.1
+
+jobs:
+  test:
+    macos:
+      xcode: v1.0.0
+    steps:
+      - run: it
+
+workflows:
+  unless-true:
+    unless: true
+    jobs:
+      - test
+
+  unless-false:
+    unless: false
+    jobs:
+      - test
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: it
+    macos:
+      xcode: v1.0.0
+workflows:
+  unless-false:
+    jobs:
+      - test
