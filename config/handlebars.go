@@ -26,7 +26,7 @@ func applyParams[T any](node *yaml.Node, params map[string]any) (*T, error) {
 }
 
 func applyPipelineParams[T any](node *yaml.Node, params map[string]any) (*T, error) {
-	return apply[T](node, pipelineParamExpr, map[string]any{"pipeline": map[string]any{"parameters": params}})
+	return apply[T](node, pipelineParamExpr, map[string]any{"pipeline": params})
 }
 
 func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (*T, error) {
