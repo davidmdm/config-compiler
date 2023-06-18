@@ -2,13 +2,13 @@ package config_test
 
 import (
 	"bytes"
-	"compiler/config"
 	"embed"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"compiler/config"
 
 	"github.com/davidmdm/yaml"
 	"github.com/stretchr/testify/require"
@@ -35,9 +35,7 @@ func TestConfigs(t *testing.T) {
 				t.Fatalf("encountered directory within test_assets/success: %s", file.Name())
 			}
 
-			testName := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
-
-			t.Run(testName, func(t *testing.T) {
+			t.Run(file.Name(), func(t *testing.T) {
 				data, err := testAssets.ReadFile(path.Join("test_assets/success", file.Name()))
 				require.NoError(t, err)
 
@@ -74,9 +72,7 @@ func TestConfigs(t *testing.T) {
 				t.Fatalf("encountered directory within test_assets/error: %s", file.Name())
 			}
 
-			testName := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
-
-			t.Run(testName, func(t *testing.T) {
+			t.Run(file.Name(), func(t *testing.T) {
 				data, err := testAssets.ReadFile(path.Join("test_assets/error", file.Name()))
 				require.NoError(t, err)
 
