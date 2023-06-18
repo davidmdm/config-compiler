@@ -1,0 +1,41 @@
+version: 2.1
+
+snippets:
+  main-only: &main-only
+    filters:
+      branches:
+        only:
+          - main
+          - master
+
+jobs:
+  test:
+    macos:
+      xcode: v1
+    steps:
+      - run: it
+
+workflows:
+  main:
+    jobs:
+      - test: *main-only
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: it
+    macos:
+      xcode: v1
+workflows:
+  main:
+    jobs:
+      - test:
+          filters:
+            branches:
+              only:
+                - main
+                - master

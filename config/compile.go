@@ -31,9 +31,16 @@ type MatrixJob struct {
 	Job          *Job
 }
 
+type WFJob struct {
+	Requires StringList
+	Contexts StringList
+	Filters  Filters
+	*Job
+}
+
 type compilerState struct {
 	Jobs      map[string][]MatrixJob
-	Workflows map[string][]*Job
+	Workflows map[string][]WFJob
 	Approvals map[string][]ApprovalJob
 }
 
@@ -55,7 +62,7 @@ type Compiler struct {
 func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte, error) {
 	c.state = compilerState{
 		Jobs:      map[string][]MatrixJob{},
-		Workflows: map[string][]*Job{},
+		Workflows: map[string][]WFJob{},
 		Approvals: map[string][]ApprovalJob{},
 	}
 
@@ -161,7 +168,16 @@ func (c Compiler) compile() Config {
 	for name, jobs := range c.state.Workflows {
 		workflowJobs := make([]WorkflowJob, len(jobs))
 		for i, j := range jobs {
-			workflowJobs[i] = WorkflowJob{Key: j.name}
+			workflowJobs[i] = WorkflowJob{
+				Key: j.name,
+				WorkflowJobData: WorkflowJobData{
+					WorkflowJobProps: WorkflowJobProps{
+						Requires: j.Requires,
+						Context:  j.Contexts,
+						Filters:  j.Filters,
+					},
+				},
+			}
 		}
 
 		targetWorkflow := c.root.Workflows[name]
@@ -297,7 +313,12 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 		job = c.state.Jobs[jobName][jobIdx].Job
 	}
 
-	c.state.Workflows[workflowName] = append(c.state.Workflows[workflowName], job)
+	c.state.Workflows[workflowName] = append(c.state.Workflows[workflowName], WFJob{
+		Requires: workflowJob.Requires,
+		Contexts: workflowJob.Context,
+		Filters:  workflowJob.Filters,
+		Job:      job,
+	})
 
 	return nil
 }
