@@ -106,44 +106,9 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 	// First pass through workflows simply validates the workflows reference valid jobs, and that the
 	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
 	// it is written to the compiled version for future processing.
-	for workflowName, workflow := range c.root.Workflows {
-		if ok, err := workflow.When.Evaluate(); !ok || err != nil {
-			if err != nil {
-				return nil, fmt.Errorf("invalid workflow condition: %v", err)
-			}
-			if !ok {
-				continue
-			}
-		}
-
-		for i, workflowJob := range workflow.Jobs {
-			if workflowJob.Type == "approval" {
-				c.state.Approvals[workflowName] = append(c.state.Approvals[workflowName], ApprovalJob{
-					Index: i,
-					Job:   workflowJob,
-				})
-				continue
-			}
-
-			jobNode, ok := c.root.Jobs[workflowJob.Key]
-			if !ok {
-				jobNode, ok = c.orbs.GetJobNode(workflowJob.Key)
-				if !ok {
-					return nil, fmt.Errorf("workflow %q job at index %d references job definition %q that does not exist", workflowName, i, workflowJob.Key)
-				}
-			}
-
-			matrixKVs := flattenKeyedMatrix(workflowJob.Matrix.Parameters)
-
-			if len(matrixKVs) == 0 {
-				matrixKVs = make([][]KV, 1)
-			}
-
-			for _, matrix := range matrixKVs {
-				if err := c.processJob(workflowName, workflowJob, matrix, jobNode.Node); err != nil {
-					return nil, err
-				}
-			}
+	for name, workflow := range c.root.Workflows {
+		if err := c.processWorkflow(name, workflow); err != nil {
+			return nil, fmt.Errorf("error processing workflow %s: %v", name, err)
 		}
 	}
 
@@ -213,6 +178,49 @@ func (c Compiler) compile() Config {
 	return compiled
 }
 
+func (c Compiler) processWorkflow(name string, workflow Workflow) error {
+	if ok, err := workflow.When.Evaluate(); !ok || err != nil {
+		if err != nil {
+			return fmt.Errorf("invalid condition: %v", err)
+		}
+		if !ok {
+			return nil
+		}
+	}
+
+	for i, workflowJob := range workflow.Jobs {
+		if workflowJob.Type == "approval" {
+			c.state.Approvals[name] = append(c.state.Approvals[name], ApprovalJob{
+				Index: i,
+				Job:   workflowJob,
+			})
+			continue
+		}
+
+		jobNode, ok := c.root.Jobs[workflowJob.Key]
+		if !ok {
+			jobNode, ok = c.orbs.GetJobNode(workflowJob.Key)
+			if !ok {
+				return fmt.Errorf("job %s not found", workflowJob.Key)
+			}
+		}
+
+		matrixKVs := flattenKeyedMatrix(workflowJob.Matrix.Parameters)
+
+		if len(matrixKVs) == 0 {
+			matrixKVs = make([][]KV, 1)
+		}
+
+		for _, matrix := range matrixKVs {
+			if err := c.processJob(name, workflowJob, matrix, jobNode.Node); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matrix []KV, jobNode *yaml.Node) error {
 	parameters, err := getParametersFromNode(jobNode)
 	if err != nil {
@@ -232,7 +240,7 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 	}()
 
 	if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
-		return PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) instantiating workflow at %s.%s:", workflowName, workflowJob.Key), Errors: errs}
+		return PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) for job %s:", workflowJob.Key), Errors: errs}
 	}
 
 	job, err := applyParams[Job](jobNode, parameters.JoinDefaults(paramValues.AsMap()))

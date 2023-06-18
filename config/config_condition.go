@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 
@@ -114,7 +113,7 @@ func (cond *Condition) Evaluate() (bool, error) {
 	if cond.Matches.Pattern != "" {
 		expression, err := regexp.Compile(cond.Matches.Pattern)
 		if err != nil {
-			return false, fmt.Errorf("invalid pattern: %s - %v", cond.Matches.Pattern, err)
+			return false, err
 		}
 		return expression.MatchString(cond.Matches.Value), nil
 	}

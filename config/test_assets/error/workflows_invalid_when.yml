@@ -1,0 +1,22 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: test
+    steps:
+      run: it
+
+workflows:
+  main:
+    when:
+      matches:
+        pattern: ')()('
+        value: invalid pattern
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: invalid condition: error parsing regexp: unexpected ): `)()(`
