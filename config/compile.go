@@ -82,10 +82,12 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		return nil, PrettyIndentErr{Message: "pipeline parameter error(s):", Errors: errs}
 	}
 
-	if node, err := applyPipelineParams[RawNode](rootNode.Node, pipelineParams); err != nil {
-		return nil, err
-	} else {
-		rootNode = *node
+	if len(parameters) > 0 {
+		if node, err := applyPipelineParams[RawNode](rootNode.Node, pipelineParams); err != nil {
+			return nil, err
+		} else {
+			rootNode = *node
+		}
 	}
 
 	if err := rootNode.Decode(&c.root); err != nil {

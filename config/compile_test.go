@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"compiler/config"
+	"github.com/davidmdm/config-compiler/config"
 
 	"github.com/davidmdm/yaml"
 	"github.com/stretchr/testify/require"

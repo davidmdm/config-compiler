@@ -1,4 +1,4 @@
-module compiler
+module github.com/davidmdm/config-compiler
 
 go 1.20
 
