@@ -14,7 +14,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/your-username/circleci-config-compiler/config"
+	"github.com/davidmdm/config-compiler/config"
 )
 
 func main() {
