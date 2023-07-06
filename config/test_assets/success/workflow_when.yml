@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   test:
     macos:
-      xcode: v1.2.1
+      xcode: 1.2.1
     steps:
       - run: it
 
@@ -100,7 +100,7 @@ jobs:
       - run:
           command: it
     macos:
-      xcode: v1.2.1
+      xcode: 1.2.1
 workflows:
   yes_and:
     jobs:

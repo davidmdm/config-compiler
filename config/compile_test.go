@@ -3,7 +3,9 @@ package config_test
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
@@ -16,6 +18,20 @@ import (
 
 //go:embed test_assets
 var testAssets embed.FS
+
+var (
+	tempPath         = "test_output/temp.yaml"
+	tempCompiledPath = "test_output/temp_compiled.yaml"
+)
+
+var e2e = os.Getenv("E2E") == "true"
+
+func init() {
+	if err := exec.Command("which", "circleci").Run(); err != nil {
+		fmt.Println(err)
+		e2e = false
+	}
+}
 
 var (
 	compiledMagicSeparator = []byte(`--- # input above / compiled below`)
@@ -59,6 +75,22 @@ func TestConfigs(t *testing.T) {
 				_ = os.WriteFile(filepath.Join("test_output", file.Name()), compiledData, 0o777)
 
 				require.EqualValues(t, expected, actual)
+
+				if !e2e {
+					return
+				}
+
+				require.NoError(t, os.WriteFile(tempPath, inputData, 0o777))
+
+				out, err := exec.Command("circleci", "--skip-update-check", "config", "process", tempPath).CombinedOutput()
+				require.NoError(t, err, string(out))
+
+				require.NoError(t, os.WriteFile(tempCompiledPath, out, 0o777))
+
+				var cci any
+				require.NoError(t, yaml.Unmarshal(out, &cci))
+
+				require.EqualValues(t, cci, actual)
 			})
 		}
 	})

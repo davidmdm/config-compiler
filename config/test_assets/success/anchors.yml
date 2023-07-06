@@ -11,7 +11,7 @@ snippets:
 jobs:
   test:
     macos:
-      xcode: v1
+      xcode: 1.0-test
     steps:
       - run: it
 
@@ -29,7 +29,7 @@ jobs:
       - run:
           command: it
     macos:
-      xcode: v1
+      xcode: 1.0-test
 workflows:
   main:
     jobs:
