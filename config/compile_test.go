@@ -90,6 +90,9 @@ func TestConfigs(t *testing.T) {
 				var cci any
 				require.NoError(t, yaml.Unmarshal(out, &cci))
 
+				m := cci.(map[string]any)["workflows"].(map[string]any)
+				delete(m, "version")
+
 				require.EqualValues(t, cci, actual)
 			})
 		}

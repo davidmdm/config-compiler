@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  example:
+    macos:
+      xcode: v2
+
+workflows:
+  main:
+    jobs:
+      - example
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job example: xcode version "v2" does not satisfy regexp: ^\d(\.\d){1,2}(-\w+)?$

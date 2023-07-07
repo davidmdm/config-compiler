@@ -8,4 +8,4 @@ workflows:
 
 error: |-
   problem(s) found with workflows:
-    main: workflow must contain at least one job
+    - main: workflow must contain at least one job

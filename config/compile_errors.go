@@ -49,7 +49,7 @@ type PrettyIndentErr struct {
 func (err PrettyIndentErr) Error() string {
 	indentedErrors := make([]string, len(err.Errors))
 	for i, e := range err.Errors {
-		indentedErrors[i] = indent(e.Error())
+		indentedErrors[i] = indent("- " + e.Error())
 	}
 	slices.Sort(indentedErrors)
 	return err.Message + "\n" + strings.Join(indentedErrors, "\n")

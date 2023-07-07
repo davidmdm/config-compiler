@@ -1,5 +1,12 @@
 package config
 
+import (
+	"fmt"
+	"regexp"
+
+	"github.com/davidmdm/yaml"
+)
+
 type Executor struct {
 	ResourceClass string   `yaml:"resource_class,omitempty"`
 	Docker        []Docker `yaml:"docker,omitempty"`
@@ -35,5 +42,19 @@ type AWSAuth struct {
 }
 
 type MacOS struct {
-	XCode string `yaml:"xcode"`
+	XCode XCodeVersion `yaml:"xcode"`
+}
+
+type XCodeVersion string
+
+var xCodeVersionExpression = regexp.MustCompile(`^\d(\.\d){1,2}(-\w+)?$`)
+
+func (version *XCodeVersion) UnmarshalYAML(node *yaml.Node) error {
+	if err := node.Decode((*string)(version)); err != nil {
+		return err
+	}
+	if !xCodeVersionExpression.MatchString(string(*version)) {
+		return fmt.Errorf("xcode version %q does not satisfy regexp: %v", *version, xCodeVersionExpression)
+	}
+	return nil
 }

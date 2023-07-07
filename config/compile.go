@@ -231,7 +231,7 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 
 		for _, matrix := range matrixKVs {
 			if err := c.processJob(name, workflowJob, matrix, jobNode.Node); err != nil {
-				return err
+				return fmt.Errorf("job %s: %v", workflowJob.Key, err)
 			}
 		}
 	}
@@ -258,7 +258,7 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 	}()
 
 	if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
-		return PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) for job %s:", workflowJob.Key), Errors: errs}
+		return PrettyIndentErr{Message: "parameter error(s):", Errors: errs}
 	}
 
 	job, err := applyParams[Job](jobNode, parameters.JoinDefaults(paramValues.AsMap()))
