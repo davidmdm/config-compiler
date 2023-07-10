@@ -22,8 +22,8 @@ type Config struct {
 }
 
 type ApprovalJob struct {
-	Index int
-	Job   WorkflowJob
+	Offset int
+	Job    WorkflowJob
 }
 
 type MatrixJob struct {
@@ -133,8 +133,11 @@ func (c Compiler) compile() Config {
 		Workflows: map[string]Workflow{},
 	}
 
+	nameMapping := map[string][]string{}
+
 	for name, matrixJobs := range c.state.Jobs {
 		jobTotal := len(matrixJobs)
+		compiledNames := make([]string, jobTotal)
 		for i, matrixJob := range matrixJobs {
 
 			job := matrixJob.Job
@@ -160,21 +163,30 @@ func (c Compiler) compile() Config {
 				job.name = name + "-" + matrixSuffix
 			}
 
+			compiledNames[i] = job.name
+
 			// zero out reusable fields
 			job.Parameters = nil
 			job.Executor = JobExecutor{}
 			compiled.Jobs[job.name] = *job
 		}
+		nameMapping[name] = compiledNames
 	}
 
 	for name, jobs := range c.state.Workflows {
 		workflowJobs := make([]WorkflowJob, len(jobs))
 		for i, j := range jobs {
+
+			var requires []string
+			for _, name := range j.Requires {
+				requires = append(requires, nameMapping[name]...)
+			}
+
 			workflowJobs[i] = WorkflowJob{
 				Key: j.name,
 				WorkflowJobData: WorkflowJobData{
 					WorkflowJobProps: WorkflowJobProps{
-						Requires: j.Requires,
+						Requires: requires,
 						Context:  j.Contexts,
 						Filters:  j.Filters,
 					},
@@ -187,7 +199,12 @@ func (c Compiler) compile() Config {
 		targetWorkflow.Jobs = workflowJobs
 
 		for i, approval := range c.state.Approvals[name] {
-			targetWorkflow.Jobs = slices.Insert(targetWorkflow.Jobs, approval.Index+i, approval.Job)
+			var requires []string
+			for _, name := range approval.Job.Requires {
+				requires = append(requires, nameMapping[name]...)
+			}
+			approval.Job.Requires = requires
+			targetWorkflow.Jobs = slices.Insert(targetWorkflow.Jobs, approval.Offset+i, approval.Job)
 		}
 
 		compiled.Workflows[name] = targetWorkflow
@@ -206,11 +223,13 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 		}
 	}
 
-	for i, workflowJob := range workflow.Jobs {
+	var offset int
+
+	for _, workflowJob := range workflow.Jobs {
 		if workflowJob.Type == "approval" {
 			c.state.Approvals[name] = append(c.state.Approvals[name], ApprovalJob{
-				Index: i,
-				Job:   workflowJob,
+				Offset: offset,
+				Job:    workflowJob,
 			})
 			continue
 		}
@@ -230,6 +249,7 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 		}
 
 		for _, matrix := range matrixKVs {
+			offset += 1
 			if err := c.processJob(name, workflowJob, matrix, jobNode.Node); err != nil {
 				return fmt.Errorf("job %s: %v", workflowJob.Key, err)
 			}
@@ -297,10 +317,7 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 		return err
 	}
 
-	jobName := workflowJob.Name
-	if jobName == "" {
-		jobName = workflowJob.Key
-	}
+	jobName := workflowJob.Name()
 
 	jobIdx := slices.IndexFunc(c.state.Jobs[jobName], func(j MatrixJob) bool {
 		return reflect.DeepEqual(job, j.Job)

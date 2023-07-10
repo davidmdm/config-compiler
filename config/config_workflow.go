@@ -109,6 +109,13 @@ type WorkflowJob struct {
 	WorkflowJobData `yaml:",inline"`
 }
 
+func (job WorkflowJob) Name() string {
+	if name := job.WorkflowJobData.Name; name != "" {
+		return name
+	}
+	return job.Key
+}
+
 func (job *WorkflowJob) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&job.Key); err == nil {
 		return nil

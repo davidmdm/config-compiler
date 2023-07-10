@@ -1,0 +1,58 @@
+version: 2.1
+
+jobs:
+  example:
+    parameters:
+      cmd:
+        type: string
+      title:
+        type: string
+    docker:
+      - image: poop
+    steps:
+      - run:
+          name: << parameters.title >>
+          command: << parameters.cmd >>
+
+workflows:
+  main:
+    jobs:
+      - example:
+          matrix:
+            parameters:
+              cmd: [echo, cat]
+              title: [print]
+
+      - approve:
+          type: approval
+          requires:
+            - example
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  example-cat-print:
+    steps:
+      - run:
+          command: cat
+          name: print
+    docker:
+      - image: poop
+  example-echo-print:
+    steps:
+      - run:
+          command: echo
+          name: print
+    docker:
+      - image: poop
+workflows:
+  main:
+    jobs:
+      - example-echo-print
+      - example-cat-print
+      - approve:
+          requires:
+            - example-echo-print
+            - example-cat-print
+          type: approval
