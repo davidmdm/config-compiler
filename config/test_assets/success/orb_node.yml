@@ -5,8 +5,7 @@ orbs:
 
 jobs:
   install-node-example:
-    docker:
-      - image: node/default
+    executor: node/default
     steps:
       - node/install:
           install-yarn: true
@@ -117,8 +116,9 @@ jobs:
           name: Install Yarn
           environment:
             NODE_PARAM_YARN_VERSION: ''
+    resource_class: large
     docker:
-      - image: node/default
+      - image: cimg/node:lts
 workflows:
   main:
     jobs:

@@ -57,9 +57,16 @@ type Compiler struct {
 	orbs Orbs
 
 	state compilerState
+
+	// GetOrbSource defines how orb data will be fetched.
+	GetOrbSource func(ref string) (string, error)
 }
 
 func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte, error) {
+	if c.GetOrbSource == nil {
+		c.GetOrbSource = GetOrbSource
+	}
+
 	c.state = compilerState{
 		Jobs:      map[string][]MatrixJob{},
 		Workflows: map[string][]WFJob{},
@@ -97,7 +104,7 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 	c.orbs = make(Orbs, len(c.root.Orbs))
 
 	for name, orb := range c.root.Orbs {
-		src, err := GetOrbSource(orb)
+		src, err := c.GetOrbSource(orb)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get orb: %s", orb)
 		}
