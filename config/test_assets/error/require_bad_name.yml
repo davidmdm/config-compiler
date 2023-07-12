@@ -1,0 +1,28 @@
+version: 2.1
+
+jobs:
+  a:
+    docker:
+      - image: test-image
+    steps:
+      - run: it
+
+  b:
+    docker:
+      - image: test-image
+    steps:
+      - run: that
+
+workflows:
+  main:
+    jobs:
+      - a:
+          name: alpha
+      - b:
+          requires: a
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job requirement error(s):
+    - job b cannot require a: no job named a in workflow

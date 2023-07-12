@@ -232,7 +232,11 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 
 	var offset int
 
+	var workflowJobNames []string
+
 	for _, workflowJob := range workflow.Jobs {
+		workflowJobNames = append(workflowJobNames, workflowJob.Name())
+
 		if workflowJob.Type == "approval" {
 			c.state.Approvals[name] = append(c.state.Approvals[name], ApprovalJob{
 				Offset: offset,
@@ -260,6 +264,23 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 			if err := c.processJob(name, workflowJob, matrix, jobNode.Node); err != nil {
 				return fmt.Errorf("job %s: %v", workflowJob.Key, err)
 			}
+		}
+	}
+
+	var errs []error
+
+	for _, wfJob := range workflow.Jobs {
+		for _, required := range wfJob.Requires {
+			if !slices.Contains(workflowJobNames, required) {
+				errs = append(errs, fmt.Errorf("job %s cannot require %s: no job named %s in workflow", wfJob.Name(), required, required))
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return PrettyIndentErr{
+			Message: "job requirement error(s):",
+			Errors:  errs,
 		}
 	}
 
