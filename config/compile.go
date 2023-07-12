@@ -221,13 +221,8 @@ func (c Compiler) compile() Config {
 }
 
 func (c Compiler) processWorkflow(name string, workflow Workflow) error {
-	if ok, err := workflow.When.Evaluate(); !ok || err != nil {
-		if err != nil {
-			return fmt.Errorf("invalid condition: %v", err)
-		}
-		if !ok {
-			return nil
-		}
+	if !workflow.When.Evaluate() {
+		return nil
 	}
 
 	var (
@@ -383,11 +378,7 @@ func (c Compiler) expandMultiStep(orbCtx string, steps []Step) ([]Step, error) {
 func (c Compiler) expandStep(orbCtx string, step Step) ([]Step, error) {
 	switch {
 	case step.Type == "when":
-		ok, err := step.When.Condition.Evaluate()
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
+		if !step.When.Condition.Evaluate() {
 			return nil, nil
 		}
 		return c.expandMultiStep(orbCtx, step.When.Steps)

@@ -2,11 +2,23 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 
 	"github.com/davidmdm/yaml"
 )
+
+type subexpressionErr string
+
+func (err subexpressionErr) Error() string {
+	return string(err)
+}
+
+func (subexpressionErr) Is(err error) bool {
+	_, ok := err.(subexpressionErr)
+	return ok
+}
 
 type ConditionalSteps struct {
 	Condition Condition `yaml:"condition"`
@@ -14,9 +26,37 @@ type ConditionalSteps struct {
 }
 
 type Matches struct {
-	Pattern string `yaml:"pattern"`
-	Value   string `yaml:"value"`
+	Pattern *Expression `yaml:"pattern"`
+	Value   string      `yaml:"value"`
 }
+
+type Expression regexp.Regexp
+
+func (expr *Expression) UnmarshalYAML(node *yaml.Node) error {
+	var raw string
+	if err := node.Decode(&raw); err != nil {
+		return err
+	}
+	if len(raw) == 0 {
+		return errors.New("pattern cannot be empty")
+	}
+	if raw[0] == '/' && raw[len(raw)-1] == '/' {
+		raw = raw[1:raw[len(raw)-1]]
+	}
+
+	expression, err := regexp.Compile(raw)
+	if err != nil {
+		return subexpressionErr(fmt.Sprintf("failed to compile pattern: %v", err))
+	}
+
+	*expr = Expression(*expression)
+	return nil
+}
+
+func (expr Expression) MarshalYAML() (any, error) {
+	return fmt.Sprintf("/%v/", expr), nil
+}
+
 type SubCondition struct {
 	And     []Condition `yaml:"and,omitempty"`
 	Or      []Condition `yaml:"or,omitempty"`
@@ -40,6 +80,8 @@ func (cond Condition) MarshalYAML() (any, error) {
 func (cond *Condition) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&cond.SubCondition); err == nil {
 		return nil
+	} else if errors.Is(err, subexpressionErr("")) {
+		return err
 	}
 
 	initializedFields := 0
@@ -59,64 +101,48 @@ func (cond *Condition) UnmarshalYAML(node *yaml.Node) error {
 	return node.Decode(&cond.Literal)
 }
 
-func (cond *Condition) Evaluate() (bool, error) {
+func (cond *Condition) Evaluate() bool {
 	if cond == nil {
-		return true, nil
+		return true
 	}
 
 	if len(cond.And) > 0 {
 		for _, subcond := range cond.And {
-			ok, err := subcond.Evaluate()
-			if err != nil {
-				return false, err
-			}
-			if !ok {
-				return false, nil
+			if !subcond.Evaluate() {
+				return false
 			}
 		}
-		return true, nil
+		return true
 	}
 
 	if len(cond.Or) > 0 {
 		for _, subcond := range cond.Or {
-			ok, err := subcond.Evaluate()
-			if err != nil {
-				return false, err
-			}
-			if ok {
-				return true, nil
+			if subcond.Evaluate() {
+				return true
 			}
 		}
-		return false, nil
+		return false
 	}
 
 	if cond.Not != nil {
-		ok, err := cond.Not.Evaluate()
-		if err != nil {
-			return false, err
-		}
-		return !ok, nil
+		return !cond.Not.Evaluate()
 	}
 
 	if size := len(cond.Equal); size > 0 {
 		if size == 1 {
-			return true, nil
+			return true
 		}
 		for i := 1; i < size; i++ {
 			if !reflect.DeepEqual(cond.Equal[i-1], cond.Equal[i]) {
-				return false, nil
+				return false
 			}
 		}
-		return true, nil
+		return true
 	}
 
-	if cond.Matches.Pattern != "" {
-		expression, err := regexp.Compile(cond.Matches.Pattern)
-		if err != nil {
-			return false, err
-		}
-		return expression.MatchString(cond.Matches.Value), nil
+	if expr := (*regexp.Regexp)(cond.Matches.Pattern); expr != nil && expr.String() != "" {
+		return expr.MatchString(cond.Matches.Value)
 	}
 
-	return !reflect.ValueOf(cond.Literal).IsZero(), nil
+	return !reflect.ValueOf(cond.Literal).IsZero()
 }
