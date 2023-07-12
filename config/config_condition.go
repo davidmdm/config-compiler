@@ -41,7 +41,7 @@ func (expr *Expression) UnmarshalYAML(node *yaml.Node) error {
 		return errors.New("pattern cannot be empty")
 	}
 	if raw[0] == '/' && raw[len(raw)-1] == '/' {
-		raw = raw[1:raw[len(raw)-1]]
+		raw = raw[1 : len(raw)-1]
 	}
 
 	expression, err := regexp.Compile(raw)

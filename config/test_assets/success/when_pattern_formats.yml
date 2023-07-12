@@ -1,0 +1,43 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: test
+    steps:
+      - run: it
+
+workflows:
+  one:
+    when:
+      matches:
+        pattern: ^hello
+        value: hello world
+    jobs:
+      - test
+
+  two:
+    when:
+      matches:
+        pattern: /^hello/
+        value: hello world
+    jobs:
+      - test
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: it
+    docker:
+      - image: test
+workflows:
+  one:
+    jobs:
+      - test
+  two:
+    jobs:
+      - test
