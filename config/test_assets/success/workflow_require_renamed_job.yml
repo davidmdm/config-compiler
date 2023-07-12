@@ -1,0 +1,46 @@
+version: 2.1
+
+jobs:
+  a:
+    parameters:
+      cmd:
+        type: string
+    docker:
+      - image: alpine
+    steps:
+      - run: <<parameters.cmd >>
+
+workflows:
+  main:
+    jobs:
+      - a:
+          name: alpha
+          cmd: echo it
+      - a:
+          name: beta
+          cmd: cat that
+          requires:
+            - alpha
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  alpha:
+    steps:
+      - run:
+          command: echo it
+    docker:
+      - image: alpine
+  beta:
+    steps:
+      - run:
+          command: cat that
+    docker:
+      - image: alpine
+workflows:
+  main:
+    jobs:
+      - alpha
+      - beta:
+          requires: alpha

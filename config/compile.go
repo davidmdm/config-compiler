@@ -230,9 +230,10 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 		}
 	}
 
-	var offset int
-
-	var workflowJobNames []string
+	var (
+		offset           int
+		workflowJobNames = make([]string, 0, len(workflow.Jobs))
+	)
 
 	for _, workflowJob := range workflow.Jobs {
 		workflowJobNames = append(workflowJobNames, workflowJob.Name())
@@ -278,10 +279,7 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 	}
 
 	if len(errs) > 0 {
-		return PrettyIndentErr{
-			Message: "job requirement error(s):",
-			Errors:  errs,
-		}
+		return PrettyIndentErr{Message: "job requirement error(s):", Errors: errs}
 	}
 
 	return nil
