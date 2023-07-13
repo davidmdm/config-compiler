@@ -89,7 +89,17 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		return nil, PrettyIndentErr{Message: "pipeline parameter error(s):", Errors: errs}
 	}
 
-	if len(parameters) > 0 {
+	if pipelineParams == nil {
+		pipelineParams = map[string]any{"parameters": parameters.JoinDefaults(map[string]any{})}
+	} else {
+		pipelineParameters, ok := pipelineParams["parameters"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse provided pipeline parameters: `parameters` key must have a map[string]any value")
+		}
+		pipelineParams["parameters"] = parameters.JoinDefaults(pipelineParameters)
+	}
+
+	if len(pipelineParams) > 0 {
 		if node, err := applyPipelineParams[RawNode](rootNode.Node, pipelineParams); err != nil {
 			return nil, err
 		} else {

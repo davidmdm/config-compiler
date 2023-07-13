@@ -1,0 +1,37 @@
+version: 2.1
+
+parameters:
+  version:
+    type: string
+    default: v1
+
+executors:
+  util:
+    docker:
+      - image: internal/img
+
+jobs:
+  publish:
+    executor: util
+    steps:
+      - run: publish << pipeline.parameters.version >>
+
+workflows:
+  main:
+    jobs:
+      - publish
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  publish:
+    steps:
+      - run:
+          command: publish v1
+    docker:
+      - image: internal/img
+workflows:
+  main:
+    jobs:
+      - publish
