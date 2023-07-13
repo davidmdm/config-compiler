@@ -4,6 +4,9 @@ parameters:
   version:
     type: string
     default: v1
+  tag:
+    type: string
+    default: testing
 
 executors:
   util:
@@ -14,12 +17,18 @@ jobs:
   publish:
     executor: util
     steps:
-      - run: publish << pipeline.parameters.version >>
+      - run: publish <<pipeline.branch>>/<<pipeline.parameters.version>>-<<pipeline.parameters.tag>>
 
 workflows:
   main:
     jobs:
       - publish
+
+--- # pipeline parameters
+
+branch: main
+parameters:
+  tag: prod
 
 --- # input above / compiled below
 
@@ -28,7 +37,7 @@ jobs:
   publish:
     steps:
       - run:
-          command: publish v1
+          command: publish main/v1-prod
     docker:
       - image: internal/img
 workflows:

@@ -19,7 +19,7 @@ import (
 //go:embed test_assets
 var testAssets embed.FS
 
-var (
+const (
 	tempPath         = "test_output/temp.yaml"
 	tempCompiledPath = "test_output/temp_compiled.yaml"
 )
@@ -36,6 +36,7 @@ func init() {
 var (
 	compiledMagicSeparator = []byte(`--- # input above / compiled below`)
 	errorMagicSeparator    = []byte(`--- # input above / error below`)
+	paramSeparator         = []byte(`--- # pipeline parameters`)
 )
 
 func TestConfigs(t *testing.T) {
@@ -58,11 +59,17 @@ func TestConfigs(t *testing.T) {
 				parts := bytes.Split(data, compiledMagicSeparator)
 
 				inputData := parts[0]
+
+				inputData, paramData, _ := bytes.Cut(inputData, paramSeparator)
+
+				var params map[string]any
+				require.NoError(t, yaml.Unmarshal(paramData, &params))
+
 				expectedData := parts[1]
 
 				compiler := config.Compiler{}
 
-				compiledData, err := compiler.Compile(inputData, nil)
+				compiledData, err := compiler.Compile(inputData, params)
 				require.NoError(t, err)
 
 				var (

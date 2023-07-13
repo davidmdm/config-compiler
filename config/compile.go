@@ -85,17 +85,25 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		return nil, fmt.Errorf("failed to get pipeline parameter definition: %v", err)
 	}
 
-	if errs := validateParameters(parameters, toParamValues(pipelineParams)); len(errs) > 0 {
+	var pipelineParameters map[string]any
+	if pipelineParams != nil {
+		value, ok := pipelineParams["parameters"]
+		if ok {
+			params, ok := value.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse provided pipeline parameters: `parameters` key must have a map[string]any value")
+			}
+			pipelineParameters = params
+		}
+	}
+
+	if errs := validateParameters(parameters, toParamValues(pipelineParameters)); len(errs) > 0 {
 		return nil, PrettyIndentErr{Message: "pipeline parameter error(s):", Errors: errs}
 	}
 
 	if pipelineParams == nil {
 		pipelineParams = map[string]any{"parameters": parameters.JoinDefaults(map[string]any{})}
 	} else {
-		pipelineParameters, ok := pipelineParams["parameters"].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse provided pipeline parameters: `parameters` key must have a map[string]any value")
-		}
 		pipelineParams["parameters"] = parameters.JoinDefaults(pipelineParameters)
 	}
 
