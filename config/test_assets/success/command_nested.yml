@@ -1,0 +1,55 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go
+    steps:
+      - greet
+
+commands:
+  greet:
+    steps:
+      - hello
+      - goodbye
+      - noop:
+          never: true
+
+  noop:
+    parameters:
+      never:
+        type: boolean
+    when:
+      conditions: << parameters.never >>
+      steps:
+        run: should not happen
+
+  hello:
+    steps:
+      - run: echo hello world
+
+  goodbye:
+    steps:
+      - run: echo goodbye
+
+workflows:
+  main:
+    jobs:
+      - test
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: echo hello world
+      - run:
+          command: echo goodbye
+    docker:
+      - image: go
+workflows:
+  main:
+    jobs:
+      - test
