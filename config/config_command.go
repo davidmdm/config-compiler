@@ -22,7 +22,22 @@ type Run struct {
 	Background      bool        `yaml:"background,omitempty"`
 	WorkDir         string      `yaml:"working_directory,omitempty"`
 	NoOutputTimeout string      `yaml:"no_output_timeout,omitempty"`
-	When            string      `yaml:"when,omitempty"`
+	When            RunWhen     `yaml:"when,omitempty"`
+}
+
+type RunWhen string
+
+func (when *RunWhen) UnmarshalYAML(node *yaml.Node) error {
+	if err := node.Decode((*string)(when)); err != nil {
+		return err
+	}
+
+	switch string(*when) {
+	case "always", "on_success", "on_fail":
+		return nil
+	default:
+		return fmt.Errorf("invalid when attribute: wanted one of always, on_success, or on_fail but got: %s", *when)
+	}
 }
 
 type Checkout struct {

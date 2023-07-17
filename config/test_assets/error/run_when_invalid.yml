@@ -1,0 +1,20 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go
+    steps:
+      - run:
+          command: echo hello world
+          when: sometimes
+
+workflows:
+  main:
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job test: invalid when attribute: wanted one of always, on_success, or on_fail but got: sometimes
