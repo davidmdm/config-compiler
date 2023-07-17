@@ -1,0 +1,17 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go
+    steps: []
+
+workflows:
+  main:
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job test: steps are required but got none

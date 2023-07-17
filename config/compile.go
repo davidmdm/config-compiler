@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -354,6 +355,10 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 	job.Steps, err = c.expandMultiStep("", steps)
 	if err != nil {
 		return err
+	}
+
+	if len(job.Steps) == 0 {
+		return errors.New("steps are required but got none")
 	}
 
 	jobName := workflowJob.Name()
