@@ -1,0 +1,55 @@
+version: 2.1
+
+jobs:
+  test:
+    parameters:
+      when_value:
+        type: string
+    docker:
+      - image: go
+    steps:
+      - run:
+          command: cmd
+          when: << parameters.when_value >>
+
+workflows:
+  main:
+    jobs:
+      - test:
+          when_value: always
+      - test:
+          when_value: on_fail
+      - test:
+          when_value: on_success
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test-1:
+    steps:
+      - run:
+          command: cmd
+          when: always
+    docker:
+      - image: go
+  test-2:
+    steps:
+      - run:
+          command: cmd
+          when: on_fail
+    docker:
+      - image: go
+  test-3:
+    steps:
+      - run:
+          command: cmd
+          when: on_success
+    docker:
+      - image: go
+workflows:
+  main:
+    jobs:
+      - test-1
+      - test-2
+      - test-3

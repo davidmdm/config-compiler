@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go1.20-alpine
+    steps:
+      - checkout
+      - run:
+          name: test
+          command: go test -v ./...
+
+workflows:
+  main:
+    jobs:
+      - test
