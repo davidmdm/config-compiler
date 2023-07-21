@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   test:
     docker:
-      - image: go1.20-alpine
+      - image: golang:1.20
     steps:
       - checkout
       - run:
