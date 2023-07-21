@@ -8,6 +8,9 @@ import (
 )
 
 type Job struct {
+	WorkingDirectory string     `yaml:"working_directory,omitempty"`
+	Shell            StringList `yaml:"shell,omitempty"`
+
 	Environment Environment          `yaml:"environment,omitempty"`
 	Parallelism int                  `yaml:"parallelism,omitempty"`
 	Parameters  map[string]Parameter `yaml:"parameters,omitempty"`

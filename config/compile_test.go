@@ -47,7 +47,6 @@ func TestConfigs(t *testing.T) {
 		require.NoError(t, os.MkdirAll("test_output", 0o777))
 
 		for _, file := range entries {
-
 			if file.IsDir() {
 				t.Fatalf("encountered directory within test_assets/success: %s", file.Name())
 			}

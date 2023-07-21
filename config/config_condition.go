@@ -144,5 +144,9 @@ func (cond *Condition) Evaluate() bool {
 		return expr.MatchString(cond.Matches.Value)
 	}
 
+	if cond.Literal == nil {
+		return false
+	}
+
 	return !reflect.ValueOf(cond.Literal).IsZero()
 }
