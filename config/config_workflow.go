@@ -39,6 +39,7 @@ func (workflows *Workflows) UnmarshalYAML(node *yaml.Node) error {
 type Workflow struct {
 	Jobs []WorkflowJob `yaml:"jobs"`
 	When *Condition    `yaml:"when,omitempty"`
+	// TODO Version ... // hard coded version: 2 - it looks like
 }
 
 func (workflow *Workflow) UnmarshalYAML(node *yaml.Node) error {

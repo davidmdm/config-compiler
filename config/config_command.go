@@ -17,7 +17,7 @@ type Command struct {
 type Run struct {
 	Command         string      `yaml:"command"`
 	Name            string      `yaml:"name,omitempty"`
-	Shell           string      `yaml:"shell,omitempty"`
+	Shell           StringList  `yaml:"shell,omitempty"`
 	Environment     Environment `yaml:"environment,omitempty"`
 	Background      bool        `yaml:"background,omitempty"`
 	WorkDir         string      `yaml:"working_directory,omitempty"`
@@ -45,6 +45,7 @@ type Checkout struct {
 }
 
 type SetupRemoteDocker struct {
+	// TODO - check recent changes
 	DockerLayerCaching bool   `yaml:"docker_layer_caching,omitempty"`
 	Version            string `yaml:"version,omitempty"`
 }
@@ -65,6 +66,7 @@ type RestoreCache struct {
 type StoreArtifacts struct {
 	Path        string `yaml:"path"`
 	Destination string `yaml:"destination,omitempty"`
+	Name        string `yaml:"name,omitempty"`
 }
 
 type StoreTestResults struct {
@@ -74,10 +76,12 @@ type StoreTestResults struct {
 type PersistToWorkspace struct {
 	Root  string   `yaml:"root"`
 	Paths []string `yaml:"paths"`
+	Name  string   `yaml:"name,omitempty"`
 }
 
 type AttachWorkspace struct {
-	At string `yaml:"at"`
+	At   string `yaml:"at"`
+	Name string `yaml:"name,omitempty"`
 }
 
 type AddSSHKeys struct {

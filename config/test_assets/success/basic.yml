@@ -8,6 +8,7 @@ jobs:
       TEST: test
     steps:
       - run: test
+      - run: lint
 
 workflows:
   main:
@@ -24,6 +25,8 @@ jobs:
     steps:
       - run:
           command: test
+      - run:
+          command: lint
     docker:
       - image: my-image
 workflows:

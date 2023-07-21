@@ -1,0 +1,168 @@
+version: 2.1
+
+workflows:
+  main:
+    jobs:
+      - test
+
+jobs:
+  test:
+    docker:
+      - image: docker-auth
+        name: Foo
+        entrypoint: ["root", "branch", "leaf"]
+        command: start the container
+        user: bob mortimer
+        environment:
+          OOF: fool
+          RAB: bar
+        auth:
+          username: username
+          password: password
+      - image: aws-auth
+        name: AWS auth
+        aws_auth:
+          aws_access_key_id: aws_access_key_id
+          aws_secret_access_key: aws_secret_access_key
+      - image: aws-oidc-auth
+        name: AWS OIDC auth
+        aws_auth:
+          oidc_role_arn: oidc_role_arn
+    working_directory: "/foo/bar/baz"
+    shell: "bash"
+    steps:
+      - run: command one
+      - run:
+          command: command
+          name: name
+          shell: shell
+          environment:
+            ENV_1: env var 1
+            ENV_2: env var 2
+          background: true
+          working_directory: working_directory
+          no_output_timeout: no_output_timeout
+          when: on_success
+      - checkout:
+          path: "fooo/barr/bazz"
+      - setup_remote_docker
+      - save_cache:
+          name: "Saving a Cool Cache"
+          paths:
+            - "wd/cahce/p1"
+            - "wd/cahce/p2"
+          key: cache-packages-{{ checksum "a-file.txt" }}
+          when: always
+      - restore_cache:
+          name: "Restoring a Cool Cache"
+          key: cache-packages-{{ checksum "a-file.txt" }}
+          keys:
+            - cache-packages-{{ checksum "a-file.txt" }}
+            - cache-packages-{{ checksum "b-file.txt" }}
+      - store_artifacts:
+          name: "Store some stuff"
+          path: "/foo/bar"
+          destination: "store/here"
+      - store_test_results:
+          path: "goo/gar"
+      - persist_to_workspace:
+          name: "Put some things in the ws"
+          root: "/my/root"
+          paths:
+            - "path/1"
+            - "path/2"
+      - attach_workspace:
+          name: "Getting stuff from ws"
+          at: "/put/me/here"
+      - add_ssh_keys:
+          fingerprints:
+            -  2q3rdefrq-343dq4-3q43-q54-3qc4
+            -  2q3rdefrq-343dq4-3q43-q54-3qc5
+            -  2q3rdefrq-343dq4-3q43-q54-3qc6
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    working_directory: /foo/bar/baz
+    shell: bash
+    steps:
+      - run:
+          command: command one
+      - run:
+          command: command
+          name: name
+          shell: shell
+          environment:
+            ENV_1: env var 1
+            ENV_2: env var 2
+          background: true
+          working_directory: working_directory
+          no_output_timeout: no_output_timeout
+          when: on_success
+      - checkout:
+          path: fooo/barr/bazz
+      - setup_remote_docker
+      - save_cache:
+          paths:
+            - wd/cahce/p1
+            - wd/cahce/p2
+          key: cache-packages-
+          name: Saving a Cool Cache
+          when: always
+      - restore_cache:
+          key: cache-packages-
+          keys:
+            - cache-packages-
+            - cache-packages-
+          name: Restoring a Cool Cache
+      - store_artifacts:
+          path: /foo/bar
+          destination: store/here
+          name: Store some stuff
+      - store_test_results:
+          path: goo/gar
+      - persist_to_workspace:
+          root: /my/root
+          paths:
+            - path/1
+            - path/2
+          name: Put some things in the ws
+      - attach_workspace:
+          at: /put/me/here
+          name: Getting stuff from ws
+      - add_ssh_keys:
+          fingerprints:
+            - 2q3rdefrq-343dq4-3q43-q54-3qc4
+            - 2q3rdefrq-343dq4-3q43-q54-3qc5
+            - 2q3rdefrq-343dq4-3q43-q54-3qc6
+    docker:
+      - image: docker-auth
+        name: Foo
+        entrypoint:
+          - root
+          - branch
+          - leaf
+        command: start the container
+        user: bob mortimer
+        environment:
+          OOF: fool
+          RAB: bar
+        auth:
+          username: username
+          password: password
+      - image: aws-auth
+        name: AWS auth
+        aws_auth:
+          aws_access_key_id: aws_access_key_id
+          aws_secret_access_key: aws_secret_access_key
+      - image: aws-oidc-auth
+        name: AWS OIDC auth
+        aws_auth:
+          oidc_role_arn: oidc_role_arn
+workflows:
+  main:
+    jobs:
+      - test
+#  version: 2

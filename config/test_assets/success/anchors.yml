@@ -7,6 +7,16 @@ snippets:
         only:
           - main
           - master
+  big_resource_class: &big_resource_class
+    resource_class: xlarge
+    environment:
+      GOMAXPROCS: 8
+  go_image: &goimage cimg/go:1.20
+
+executors:
+  default:
+    docker:
+      - image: *goimage
 
 jobs:
   test:
@@ -14,11 +24,22 @@ jobs:
       xcode: 1.0-test
     steps:
       - run: it
+  lint:
+    executor: default
+    <<: *big_resource_class
+    steps:
+      - run:
+          name: verify modules are tidy
+          command: |
+            go mod tidy -v
+            git diff --exit-code
+      - run: ./do lint-report ./... --timeout=2m
 
 workflows:
   main:
     jobs:
       - test: *main-only
+      - lint
 
 --- # input above / compiled below
 
@@ -30,6 +51,20 @@ jobs:
           command: it
     macos:
       xcode: 1.0-test
+  lint:
+    environment:
+      GOMAXPROCS: 8
+    steps:
+      - run:
+          command: |
+            go mod tidy -v
+            git diff --exit-code
+          name: verify modules are tidy
+      - run:
+          command: ./do lint-report ./... --timeout=2m
+    docker:
+      - image: cimg/go:1.20
+
 workflows:
   main:
     jobs:
@@ -39,3 +74,4 @@ workflows:
               only:
                 - main
                 - master
+      - lint

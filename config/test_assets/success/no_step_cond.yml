@@ -1,0 +1,32 @@
+
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: foo
+    steps:
+      - run: command one
+      - when   # TODO - this should not appear in compiled
+      - unless # TODO - this should not appear in compiled
+
+workflows:
+  main:
+    jobs:
+      - test:
+
+--- # input above / compiled below
+
+version: 2
+jobs:
+  test:
+    steps:
+      - run:
+          command: command one
+      - {}
+    docker:
+      - image: foo
+workflows:
+  main:
+    jobs:
+      - test
