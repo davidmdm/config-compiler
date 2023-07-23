@@ -401,10 +401,15 @@ func (c Compiler) expandMultiStep(orbCtx string, steps []Step) ([]Step, error) {
 func (c Compiler) expandStep(orbCtx string, step Step) ([]Step, error) {
 	switch {
 	case step.Type == "when":
-		if !step.When.Condition.Evaluate() {
+		if step.When == nil || !step.When.Condition.Evaluate() {
 			return nil, nil
 		}
 		return c.expandMultiStep(orbCtx, step.When.Steps)
+	case step.Type == "unless":
+		if step.Unless == nil || step.Unless.Condition.Evaluate() {
+			return nil, nil
+		}
+		return c.expandMultiStep(orbCtx, step.Unless.Steps)
 	case slices.Contains(stepCmds, step.Type):
 		return []Step{step}, nil
 	default:
