@@ -1,26 +1,38 @@
 version: 2.1
 
-jobs:
-  one:
+executors:
+  example:
     docker:
       - image: my-image
+
+jobs:
+  one:
+    executor: example
     steps:
       - run: do it
     environment:
       VAR: variable
+
   two:
-    docker:
-      - image: my-image
+    executor: example
     steps:
       - run: do it
     environment:
       - VAR: variable
+
+  three:
+    executor: example
+    steps:
+      - run: do it
+    environment:
+      - VAR=variable
 
 workflows:
   main:
     jobs:
       - one
       - two
+      - three
 
 --- # input above / compiled below
 
@@ -34,6 +46,14 @@ jobs:
           command: do it
     docker:
       - image: my-image
+  three:
+    environment:
+      VAR: variable
+    steps:
+      - run:
+          command: do it
+    docker:
+      - image: my-image
   two:
     environment:
       VAR: variable
@@ -47,3 +67,4 @@ workflows:
     jobs:
       - one
       - two
+      - three
