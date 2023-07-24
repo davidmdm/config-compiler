@@ -1,0 +1,20 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go
+    environment:
+      - some-invalid-format-string
+    steps:
+      - run: it
+
+workflows:
+  main:
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job test: environment string should be of form KEY=value, not some-invalid-format-string

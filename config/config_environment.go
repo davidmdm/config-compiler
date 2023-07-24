@@ -14,8 +14,8 @@ func (env *Environment) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&envSlice); err == nil {
 		*env = map[string]any{}
 		for _, envmap := range envSlice {
-			for k, v := range envmap {
-				(*env)[k] = v
+			for key, value := range envmap {
+				(*env)[key] = value
 			}
 		}
 		return nil
@@ -25,12 +25,11 @@ func (env *Environment) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&stringSlice); err == nil {
 		*env = map[string]any{}
 		for _, s := range stringSlice {
-
-			kvs := strings.SplitN(s, "=", 2)
-			if len(kvs) != 2 {
+			key, value, ok := strings.Cut(s, "=")
+			if !ok {
 				return fmt.Errorf("environment string should be of form KEY=value, not %s", s)
 			}
-			(*env)[kvs[0]] = kvs[1]
+			(*env)[key] = value
 		}
 		return nil
 	}
