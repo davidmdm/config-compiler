@@ -1,0 +1,18 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go
+    steps:
+      - some-command
+
+workflows:
+  main:
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job test: command not found: some-command
