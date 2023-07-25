@@ -15,4 +15,4 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job test: command not found: some-command
+  error processing workflow main: job test: failed to compiled step 0: some-command: command not found

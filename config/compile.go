@@ -388,9 +388,13 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 
 func (c Compiler) expandMultiStep(orbCtx string, steps []Step) ([]Step, error) {
 	var result []Step
-	for _, substep := range steps {
+	for i, substep := range steps {
 		if substeps, err := c.expandStep(orbCtx, substep); err != nil {
-			return nil, err
+			stepName := substep.Type
+			if orbCtx != "" {
+				stepName = orbCtx + "/" + stepName
+			}
+			return nil, fmt.Errorf("failed to compiled step %d: %s: %w", i, stepName, err)
 		} else {
 			result = append(result, substeps...)
 		}
@@ -417,7 +421,7 @@ func (c Compiler) expandStep(orbCtx string, step Step) ([]Step, error) {
 		if !ok {
 			cmdNode, orbCtx, ok = c.orbs.GetCommandNode(orbCtx, step.Type)
 			if !ok {
-				return nil, fmt.Errorf("command not found: %s", step.Type)
+				return nil, fmt.Errorf("command not found")
 			}
 		}
 

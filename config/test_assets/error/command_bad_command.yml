@@ -1,0 +1,26 @@
+version: 2.1
+
+commands:
+  bad:
+    steps:
+      - save_cache
+
+jobs:
+  test:
+    docker:
+      - image: go
+    steps:
+      - run: it
+      - bad
+
+workflows:
+  main:
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow main: job test: failed to compiled step 1: bad: invalid step(s): position 0: errors within save_cache command:
+    - save_cache.key is required
+    - save_cache.paths requires at least 1 element
