@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/davidmdm/yaml"
 )
 
@@ -47,4 +49,35 @@ func resolveAliases(node *yaml.Node) {
 		return
 	}
 	*node = *node.Alias
+}
+
+type List[T any] []T
+
+func (l *List[T]) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.SequenceNode {
+		return fmt.Errorf("expected a string but got: %s", node.Tag)
+	}
+	var (
+		results = make([]T, len(node.Content))
+		errs    []error
+	)
+
+	for i, n := range node.Content {
+		if err := n.Decode(&results[i]); err != nil {
+			errs = append(errs, fmt.Errorf("position %d: %w", i, err))
+		}
+	}
+
+	switch len(errs) {
+	case 0:
+		*l = results
+		return nil
+	case 1:
+		return errs[0]
+	default:
+		return OrderedPrettyIndentErr{
+			Message: "",
+			Errors:  errs,
+		}
+	}
 }

@@ -14,7 +14,7 @@ type Job struct {
 	Environment Environment          `yaml:"environment,omitempty"`
 	Parallelism int                  `yaml:"parallelism,omitempty"`
 	Parameters  map[string]Parameter `yaml:"parameters,omitempty"`
-	Steps       []Step               `yaml:"steps"`
+	Steps       Steps                `yaml:"steps"`
 
 	Executor       JobExecutor `yaml:"executor,omitempty"`
 	InlineExecutor `yaml:",inline"`

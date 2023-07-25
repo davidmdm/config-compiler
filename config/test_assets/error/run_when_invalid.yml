@@ -17,4 +17,4 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job test: invalid when attribute: wanted one of always, on_success, or on_fail but got: sometimes
+  error processing workflow main: job test: invalid step(s): position 0: invalid when attribute: wanted one of always, on_success, or on_fail but got: sometimes
