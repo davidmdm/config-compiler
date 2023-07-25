@@ -80,7 +80,7 @@ func (cmd SaveCache) Validate() error {
 	case 1:
 		return errs[0]
 	default:
-		return PrettyIndentErr{
+		return PrettyErr{
 			Message: "errors within save_cache command:",
 			Errors:  errs,
 		}
@@ -145,7 +145,7 @@ func (cmd PersistToWorkspace) Validate() error {
 	case 1:
 		return errs[0]
 	default:
-		return PrettyIndentErr{
+		return PrettyErr{
 			Message: "errors within persist_to_workspace command:",
 			Errors:  errs,
 		}

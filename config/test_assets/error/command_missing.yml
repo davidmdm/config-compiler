@@ -6,6 +6,7 @@ jobs:
       - image: go
     steps:
       - some-command
+      - orb/missing
 
 workflows:
   main:
@@ -15,4 +16,6 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job test: failed to compiled step 0: some-command: command not found
+  error processing workflow main: job test: could not compile step(s):
+    - step 0: some-command: command not found
+    - step 1: orb/missing: command not found

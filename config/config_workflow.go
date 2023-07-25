@@ -28,7 +28,7 @@ func (workflows *Workflows) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	if len(errs) > 0 {
-		return PrettyIndentErr{Message: "problem(s) found with workflows:", Errors: errs}
+		return PrettyErr{Message: "problem(s) found with workflows:", Errors: errs}
 	}
 
 	*workflows = result

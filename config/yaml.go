@@ -75,7 +75,7 @@ func (l *List[T]) UnmarshalYAML(node *yaml.Node) error {
 	case 1:
 		return errs[0]
 	default:
-		return OrderedPrettyIndentErr{
+		return OrderedErr{
 			Message: "",
 			Errors:  errs,
 		}

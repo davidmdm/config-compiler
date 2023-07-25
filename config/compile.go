@@ -99,7 +99,7 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 	}
 
 	if errs := validateParameters(parameters, toParamValues(pipelineParameters)); len(errs) > 0 {
-		return nil, PrettyIndentErr{Message: "pipeline parameter error(s):", Errors: errs}
+		return nil, PrettyErr{Message: "pipeline parameter error(s):", Errors: errs}
 	}
 
 	if pipelineParams == nil {
@@ -293,7 +293,7 @@ func (c Compiler) processWorkflow(name string, workflow Workflow) error {
 	}
 
 	if len(errs) > 0 {
-		return PrettyIndentErr{Message: "job requirement error(s):", Errors: errs}
+		return PrettyErr{Message: "job requirement error(s):", Errors: errs}
 	}
 
 	return nil
@@ -318,7 +318,7 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 	}()
 
 	if errs := validateParameters(parameters, paramValues); len(errs) > 0 {
-		return PrettyIndentErr{Message: "parameter error(s):", Errors: errs}
+		return PrettyErr{Message: "parameter error(s):", Errors: errs}
 	}
 
 	job, err := applyParams[Job](jobNode, parameters.JoinDefaults(paramValues.AsMap()))
@@ -387,17 +387,23 @@ func (c *Compiler) processJob(workflowName string, workflowJob WorkflowJob, matr
 }
 
 func (c Compiler) expandMultiStep(orbCtx string, steps []Step) ([]Step, error) {
-	var result []Step
+	var (
+		result []Step
+		errs   []error
+	)
 	for i, substep := range steps {
 		if substeps, err := c.expandStep(orbCtx, substep); err != nil {
 			stepName := substep.Type
 			if orbCtx != "" {
 				stepName = orbCtx + "/" + stepName
 			}
-			return nil, fmt.Errorf("failed to compiled step %d: %s: %w", i, stepName, err)
+			errs = append(errs, fmt.Errorf("step %d: %s: %w", i, stepName, err))
 		} else {
 			result = append(result, substeps...)
 		}
+	}
+	if len(errs) > 0 {
+		return nil, OrderedErr{Message: "could not compile step(s):", Errors: errs}
 	}
 	return result, nil
 }
@@ -431,7 +437,7 @@ func (c Compiler) expandStep(orbCtx string, step Step) ([]Step, error) {
 		}
 
 		if errs := validateParameters(parameters, step.Params); len(errs) > 0 {
-			return nil, PrettyIndentErr{Message: fmt.Sprintf("parameter error(s) invoking command %s", step.Type), Errors: errs}
+			return nil, PrettyErr{Message: fmt.Sprintf("parameter error(s) invoking command %s", step.Type), Errors: errs}
 		}
 
 		cmd, err := applyParams[Command](cmdNode.Node, parameters.JoinDefaults(step.Params.AsMap()))

@@ -2,9 +2,8 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strings"
-
-	"golang.org/x/exp/slices"
 )
 
 type ParamTypeMismatchErr struct {
@@ -41,31 +40,32 @@ func (err MissingParamsErr) Error() string {
 	return fmt.Sprintf("missing required parameters: %s", strings.Join(err, ", "))
 }
 
-type PrettyIndentErr struct {
+type OrderedErr struct {
 	Message string
 	Errors  []error
 }
 
-func (err PrettyIndentErr) Error() string {
-	indentedErrors := make([]string, len(err.Errors))
-	for i, e := range err.Errors {
-		indentedErrors[i] = indent("- " + e.Error())
+func (err OrderedErr) Error() string {
+	switch len(err.Errors) {
+	case 0:
+		return err.Message
+	default:
+		indentedErrors := make([]string, len(err.Errors))
+		for i, e := range err.Errors {
+			indentedErrors[i] = indent("- " + e.Error())
+		}
+		return err.Message + "\n" + strings.Join(indentedErrors, "\n")
 	}
-	slices.Sort(indentedErrors)
-	return err.Message + "\n" + strings.Join(indentedErrors, "\n")
 }
 
-type OrderedPrettyIndentErr struct {
+type PrettyErr struct {
 	Message string
 	Errors  []error
 }
 
-func (err OrderedPrettyIndentErr) Error() string {
-	indentedErrors := make([]string, len(err.Errors))
-	for i, e := range err.Errors {
-		indentedErrors[i] = indent("- " + e.Error())
-	}
-	return err.Message + "\n" + strings.Join(indentedErrors, "\n")
+func (err PrettyErr) Error() string {
+	sort.SliceStable(err.Errors, func(i, j int) bool { return err.Errors[i].Error() < err.Errors[j].Error() })
+	return OrderedErr(err).Error()
 }
 
 func indent(value string) string {
