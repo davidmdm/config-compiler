@@ -1,0 +1,14 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: go
+    steps:
+      - run: it
+
+worflows: {}
+
+--- # input above / error below
+
+error: config contains no workflows or build jobs

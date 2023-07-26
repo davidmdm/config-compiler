@@ -120,6 +120,14 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		return nil, err
 	}
 
+	if len(c.root.Workflows) == 0 {
+		if _, ok := c.root.Jobs["build"]; ok {
+			c.root.Workflows = Workflows{"workflow": {Jobs: []WorkflowJob{{Key: "build"}}}}
+		} else {
+			return nil, errors.New("config contains no workflows or build jobs")
+		}
+	}
+
 	c.orbs = make(Orbs, len(c.root.Orbs))
 
 	for name, orb := range c.root.Orbs {
