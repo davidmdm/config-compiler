@@ -16,6 +16,7 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job test: could not compile step(s):
-    - step 0: some-command: command not found
-    - step 1: orb/missing: command not found
+  error processing workflow(s):
+    - workflow main: job test: could not compile step(s):
+      - step 0: some-command: command not found
+      - step 1: orb/missing: command not found

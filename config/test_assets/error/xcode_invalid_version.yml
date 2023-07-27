@@ -13,4 +13,5 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job example: xcode version "v2" does not satisfy regexp: ^\d(\.\d){1,2}(-\w+)?$
+  error processing workflow(s):
+    - workflow main: job example: xcode version "v2" does not satisfy regexp: ^\d(\.\d){1,2}(-\w+)?$

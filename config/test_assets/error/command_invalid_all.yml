@@ -29,19 +29,20 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job test: invalid step(s): 
-    - position 0: run.command is required
-    - position 1: errors within save_cache command:
-      - save_cache.key is required
-      - save_cache.paths requires at least 1 element
-    - position 2: save_cache.key is required
-    - position 3: save_cache.paths requires at least 1 element
-    - position 4: restore_cache: requires one of key or keys to be present
-    - position 5: store_artifacts.path is required
-    - position 6: store_test_results.path is required
-    - position 7: errors within persist_to_workspace command:
-      - persist_to_workspace.paths requires at least 1 element
-      - persist_to_workspace.root is required
-    - position 8: persist_to_workspace.root is required
-    - position 9: persist_to_workspace.paths requires at least 1 element
-    - position 10: attach_workspace.at is required
+  error processing workflow(s):
+    - workflow main: job test: invalid step(s): 
+      - position 0: run.command is required
+      - position 1: errors within save_cache command:
+        - save_cache.key is required
+        - save_cache.paths requires at least 1 element
+      - position 2: save_cache.key is required
+      - position 3: save_cache.paths requires at least 1 element
+      - position 4: restore_cache: requires one of key or keys to be present
+      - position 5: store_artifacts.path is required
+      - position 6: store_test_results.path is required
+      - position 7: errors within persist_to_workspace command:
+        - persist_to_workspace.paths requires at least 1 element
+        - persist_to_workspace.root is required
+      - position 8: persist_to_workspace.root is required
+      - position 9: persist_to_workspace.paths requires at least 1 element
+      - position 10: attach_workspace.at is required

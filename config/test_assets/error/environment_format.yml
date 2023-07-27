@@ -17,4 +17,5 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job test: environment string should be of form KEY=value, not some-invalid-format-string
+  error processing workflow(s):
+    - workflow main: job test: environment string should be of form KEY=value, not some-invalid-format-string

@@ -146,12 +146,22 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		c.orbs[name] = raw
 	}
 
+	var errs []error
+
 	// First pass through workflows simply validates the workflows reference valid jobs, and that the
 	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
 	// it is written to the compiled version for future processing.
 	for name, workflow := range c.root.Workflows {
 		if err := c.processWorkflow(name, workflow); err != nil {
-			return nil, fmt.Errorf("error processing workflow %s: %v", name, err)
+			errs = append(errs, fmt.Errorf("workflow %s: %w", name, err))
+			// return nil, fmt.Errorf("error processing workflow %s: %v", name, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return nil, PrettyErr{
+			Message: "error processing workflow(s):",
+			Errors:  errs,
 		}
 	}
 

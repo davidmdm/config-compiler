@@ -16,5 +16,6 @@ workflows:
 --- # input above / error below
 
 error: |-
-  error processing workflow main: job requirement error(s):
-    - job a cannot require b: no job named b in workflow
+  error processing workflow(s):
+    - workflow main: job requirement error(s):
+      - job a cannot require b: no job named b in workflow
