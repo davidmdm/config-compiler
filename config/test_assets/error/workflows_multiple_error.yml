@@ -1,0 +1,27 @@
+version: 2.1
+
+jobs:
+  test:
+    parameters:
+      size:
+        type: string
+    docker:
+      - image: go
+    steps:
+      - run: it
+
+workflows:
+  one:
+    jobs: []
+
+  two:
+    jobs:
+      - test
+
+--- # input above / error below
+
+error: |-
+  error processing workflow(s):
+    - workflow one: workflow must contain at least one job
+    - workflow two: job test: parameter error(s):
+      - missing required parameter: size

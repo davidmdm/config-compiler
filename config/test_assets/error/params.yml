@@ -31,6 +31,6 @@ error: |-
   error processing workflow(s):
     - workflow main: job test: parameter error(s):
       - enum mismatch for param image: wanted one of (go, node) but got ruby
-      - missing required parameters: required
+      - missing required parameter: required
       - type mismatch for param mismatch: wanted string but got integer
       - unknown argument: not-declared

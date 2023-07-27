@@ -7,5 +7,5 @@ workflows:
 --- # input above / error below
 
 error: |-
-  problem(s) found with workflows:
-    - main: workflow must contain at least one job
+  error processing workflow(s):
+    - workflow main: workflow must contain at least one job

@@ -44,8 +44,8 @@ type compilerState struct {
 type Compiler struct {
 	root struct {
 		Setup     bool               `yaml:"setup"`
-		Workflows Workflows          `yaml:"workflows"`
 		Orbs      map[string]string  `yaml:"orbs"`
+		Workflows map[string]RawNode `yaml:"workflows"`
 		Jobs      map[string]RawNode `yaml:"jobs"`
 		Commands  map[string]RawNode `yaml:"commands"`
 		Executors map[string]RawNode `yaml:"executors"`
@@ -116,12 +116,9 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		return nil, err
 	}
 
-	if len(c.root.Workflows) == 0 {
-		if _, ok := c.root.Jobs["build"]; ok {
-			c.root.Workflows = Workflows{"workflow": {Jobs: []WorkflowJob{{Key: "build"}}}}
-		} else {
-			return nil, errors.New("config contains no workflows or build jobs")
-		}
+	// Shortcircuit if no workflows or build jobs
+	if _, ok := c.root.Jobs["build"]; len(c.root.Workflows) == 0 && !ok {
+		return nil, errors.New("config contains no workflows or build jobs")
 	}
 
 	c.orbs = make(Orbs, len(c.root.Orbs))
@@ -142,28 +139,11 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 		c.orbs[name] = raw
 	}
 
-	var errs []error
-
-	// First pass through workflows simply validates the workflows reference valid jobs, and that the
-	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
-	// it is written to the compiled version for future processing.
-	for name, workflow := range c.root.Workflows {
-		if err := c.processWorkflow(name, workflow); err != nil {
-			errs = append(errs, fmt.Errorf("workflow %s: %w", name, err))
-			// return nil, fmt.Errorf("error processing workflow %s: %v", name, err)
-		}
+	if err := c.processWorkflows(); err != nil {
+		return nil, err
 	}
 
-	if len(errs) > 0 {
-		return nil, PrettyErr{
-			Message: "error processing workflow(s):",
-			Errors:  errs,
-		}
-	}
-
-	cfg := c.compile()
-
-	return yaml.Marshal(cfg)
+	return yaml.Marshal(c.compile())
 }
 
 func (c Compiler) compile() Config {
@@ -235,9 +215,7 @@ func (c Compiler) compile() Config {
 			}
 		}
 
-		targetWorkflow := c.root.Workflows[name]
-		targetWorkflow.When = nil
-		targetWorkflow.Jobs = workflowJobs
+		workflow := Workflow{Jobs: workflowJobs}
 
 		for i, approval := range c.state.Approvals[name] {
 			var requires []string
@@ -245,16 +223,51 @@ func (c Compiler) compile() Config {
 				requires = append(requires, nameMapping[name]...)
 			}
 			approval.Job.Requires = requires
-			targetWorkflow.Jobs = slices.Insert(targetWorkflow.Jobs, approval.Offset+i, approval.Job)
+			workflow.Jobs = slices.Insert(workflow.Jobs, approval.Offset+i, approval.Job)
 		}
 
-		compiled.Workflows[name] = targetWorkflow
+		compiled.Workflows[name] = workflow
 	}
 
 	return compiled
 }
 
-func (c Compiler) processWorkflow(name string, workflow Workflow) error {
+func (c Compiler) processWorkflows() error {
+	if len(c.root.Workflows) == 0 {
+		if err := c.processWorkflow("workflow", &Workflow{Jobs: []WorkflowJob{{Key: "build"}}}); err != nil {
+			return fmt.Errorf("error processing build job: %w", err)
+		}
+	}
+
+	var errs []error
+
+	// First pass through workflows simply validates the workflows reference valid jobs, and that the
+	// parameters are aligned. It only evaluates workflows that will not be skipped. If a workflow is valid
+	// it is written to the compiled version for future processing.
+	for name, workflow := range c.root.Workflows {
+		if err := c.processWorkflowNode(name, workflow); err != nil {
+			errs = append(errs, fmt.Errorf("workflow %s: %w", name, err))
+		}
+	}
+	if len(errs) > 0 {
+		return PrettyErr{
+			Message: "error processing workflow(s):",
+			Errors:  errs,
+		}
+	}
+
+	return nil
+}
+
+func (c Compiler) processWorkflowNode(name string, node RawNode) error {
+	workflow, err := apply[Workflow](node.Node, nil, nil)
+	if err != nil {
+		return err
+	}
+	return c.processWorkflow(name, workflow)
+}
+
+func (c *Compiler) processWorkflow(name string, workflow *Workflow) error {
 	if !workflow.When.Evaluate() {
 		return nil
 	}

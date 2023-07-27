@@ -19,5 +19,5 @@ workflows:
 --- # input above / error below
 
 error: |-
-  problem(s) found with workflows:
-    - main: failed to compile pattern: error parsing regexp: unexpected ): `)()(`
+  error processing workflow(s):
+    - workflow main: failed to compile pattern: error parsing regexp: unexpected ): `)()(`

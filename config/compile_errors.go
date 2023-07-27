@@ -37,7 +37,7 @@ func (err ParamEnumMismatchErr) Error() string {
 type MissingParamsErr []string
 
 func (err MissingParamsErr) Error() string {
-	return fmt.Sprintf("missing required parameters: %s", strings.Join(err, ", "))
+	return fmt.Sprintf("missing required parameter: %s", strings.Join(err, ", "))
 }
 
 type OrderedErr struct {

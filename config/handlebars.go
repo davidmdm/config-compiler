@@ -35,9 +35,13 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 		return nil, err
 	}
 
-	handlebarTmpl := toHandlebars(template.String(), expr)
-
-	raw, err := raymond.Render(handlebarTmpl, params)
+	raw, err := func() ([]byte, error) {
+		if expr == nil {
+			return template.Bytes(), nil
+		}
+		raw, err := raymond.Render(toHandlebars(template.String(), expr), params)
+		return []byte(raw), err
+	}()
 	if err != nil {
 		return nil, err
 	}
@@ -46,10 +50,10 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 	// _ = os.WriteFile("./output.handlebard.debug", []byte(handlebarTmpl), 0o777)
 	// _ = os.WriteFile("./output.debug", []byte(raw), 0o777)
 
-	dst := new(T)
-	if err := yaml.Unmarshal([]byte(raw), dst); err != nil {
+	var dst T
+	if err := yaml.Unmarshal(raw, &dst); err != nil {
 		return nil, err
 	}
 
-	return dst, nil
+	return &dst, nil
 }
