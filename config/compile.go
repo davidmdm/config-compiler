@@ -12,14 +12,10 @@ import (
 )
 
 type Config struct {
-	Version    float64              `yaml:"version"`
-	Jobs       map[string]Job       `yaml:"jobs"`
-	Workflows  map[string]Workflow  `yaml:"workflows"`
-	Setup      bool                 `yaml:"setup,omitempty"`
-	Orbs       map[string]string    `yaml:"orbs,omitempty"`
-	Commands   map[string]Command   `yaml:"commands,omitempty"`
-	Parameters map[string]Parameter `yaml:"parameters,omitempty"`
-	Executors  map[string]Executor  `yaml:"executors,omitempty"`
+	Setup     bool           `yaml:"setup,omitempty"`
+	Version   float64        `yaml:"version"`
+	Jobs      map[string]Job `yaml:"jobs"`
+	Workflows Workflows      `yaml:"workflows"`
 }
 
 type ApprovalJob struct {
@@ -173,6 +169,7 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 func (c Compiler) compile() Config {
 	compiled := Config{
 		Version:   2,
+		Setup:     c.root.Setup,
 		Jobs:      map[string]Job{},
 		Workflows: map[string]Workflow{},
 	}

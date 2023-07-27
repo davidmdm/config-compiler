@@ -1,0 +1,26 @@
+version: 2.1
+
+setup: true
+
+jobs:
+  build:
+    docker:
+      - image: go
+    steps:
+      - run: it
+
+--- # input above / compiled below
+
+setup: true
+version: 2
+jobs:
+  build:
+    steps:
+      - run:
+          command: it
+    docker:
+      - image: go
+workflows:
+  workflow:
+    jobs:
+      - build
