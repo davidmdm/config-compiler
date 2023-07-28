@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/CircleCI-Public/circleci-cli v0.1.26896
-	github.com/aymerick/raymond v2.0.2+incompatible
+	github.com/davidmdm/handlebars v0.0.2
 	github.com/davidmdm/yaml v0.0.1
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1

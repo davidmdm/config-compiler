@@ -2,9 +2,11 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"regexp"
+	"strings"
 
-	"github.com/aymerick/raymond"
+	"github.com/davidmdm/handlebars"
 	"github.com/davidmdm/yaml"
 )
 
@@ -39,7 +41,34 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 		if expr == nil {
 			return template.Bytes(), nil
 		}
-		raw, err := raymond.Render(toHandlebars(template.String(), expr), params)
+		tpl, err := handlebars.Parse(toHandlebars(template.String(), expr))
+		if err != nil {
+			return nil, err
+		}
+
+		var errs []error
+
+	outer:
+		for _, expr := range tpl.ExpressionPaths() {
+			if !strings.HasPrefix(expr, "pipeline.") && !strings.HasPrefix(expr, "parameters.") {
+				continue
+			}
+			current := params
+			for _, pathSegment := range strings.Split(expr, ".") {
+				value, ok := current[pathSegment]
+				if !ok {
+					errs = append(errs, errors.New(expr))
+					continue outer
+				}
+				current, _ = value.(map[string]any)
+			}
+		}
+
+		if len(errs) > 0 {
+			return nil, PrettyErr{Message: "missing arguments:", Errors: errs}
+		}
+
+		raw, err := tpl.Exec(params)
 		return []byte(raw), err
 	}()
 	if err != nil {

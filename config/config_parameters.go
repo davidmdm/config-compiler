@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/aymerick/raymond"
+	"github.com/davidmdm/handlebars"
 	"github.com/davidmdm/yaml"
 )
 
@@ -51,7 +51,7 @@ func (params ParamValues) AsMap() map[string]any {
 			var x any
 			yaml.Unmarshal(raw, &x)
 			raw, _ = json.Marshal(x)
-			result[k] = raymond.SafeString(raw)
+			result[k] = handlebars.SafeString(raw)
 		} else {
 			result[k] = v.value
 		}

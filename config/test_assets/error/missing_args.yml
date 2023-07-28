@@ -1,0 +1,15 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: foo
+    steps:
+      - run: command one
+      - run: << parameters.dne >>
+
+--- # input above / error below
+
+error: |-
+  error processing build job: job build: missing arguments:
+    - parameters.dne

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/davidmdm/yaml"
@@ -237,6 +238,8 @@ func (step *Step) UnmarshalYAML(node *yaml.Node) (err error) {
 	if len(m) != 1 {
 		return fmt.Errorf("step can only be of one type")
 	}
+
+	yaml.NewEncoder(os.Stdout).Encode(node)
 
 	var childNode *yaml.Node
 	for key, value := range m {
