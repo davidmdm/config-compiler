@@ -1,0 +1,22 @@
+version: 2.1
+
+parameters:
+  size:
+    type: string
+  release:
+    type: string
+
+jobs:
+  build:
+    docker:
+      - image: go-<< pipeline.parameters.release >>
+    resource_class: << pipeline.parameters.size >>
+    steps:
+      - run: it
+
+--- # input above / error below
+
+error: |-
+  error processing pipeline parameters: 
+    - release.default is required
+    - size.default is required

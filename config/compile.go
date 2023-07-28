@@ -77,9 +77,9 @@ func (c Compiler) Compile(source []byte, pipelineParams map[string]any) ([]byte,
 
 	resolveAliases(rootNode.Node)
 
-	parameters, err := getParametersFromNode(rootNode.Node)
+	parameters, err := getParametersFromRootNode(rootNode.Node)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pipeline parameter definition: %v", err)
+		return nil, fmt.Errorf("error processing pipeline parameters: %w", err)
 	}
 
 	var pipelineParameters map[string]any
@@ -532,7 +532,28 @@ func getParametersFromNode(node *yaml.Node) (Parameters, error) {
 	if err := node.Decode(&parameterNode); err != nil {
 		return nil, err
 	}
+
 	return parameterNode.Parameters, nil
+}
+
+func getParametersFromRootNode(node *yaml.Node) (Parameters, error) {
+	parameters, err := getParametersFromNode(node)
+	if err != nil {
+		return nil, err
+	}
+
+	var errs []error
+	for name, param := range parameters {
+		if param.Default == nil {
+			errs = append(errs, fmt.Errorf("%s.default is required", name))
+		}
+	}
+
+	if len(errs) > 0 {
+		return nil, PrettyErr{Errors: errs}
+	}
+
+	return parameters, nil
 }
 
 func validateParameters(parameters map[string]Parameter, values ParamValues) (errs []error) {
