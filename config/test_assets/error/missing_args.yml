@@ -11,5 +11,5 @@ jobs:
 --- # input above / error below
 
 error: |-
-  error processing build job: job build: missing arguments:
+  error processing build job: job build: argument(s) referenced in template but not declared:
     - parameters.dne

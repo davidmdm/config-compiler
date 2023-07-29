@@ -65,7 +65,7 @@ func apply[T any](node *yaml.Node, expr *regexp.Regexp, params map[string]any) (
 		}
 
 		if len(errs) > 0 {
-			return nil, PrettyErr{Message: "missing arguments:", Errors: errs}
+			return nil, PrettyErr{Message: "argument(s) referenced in template but not declared:", Errors: errs}
 		}
 
 		raw, err := tpl.Exec(params)
